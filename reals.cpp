@@ -90,12 +90,23 @@ int main(int argc, char** argv) {
 
         std::vector<cl_float3> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         std::vector<cl_float3> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float> h_local_time(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientations_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientations_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientations_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float> h_local_times(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         std::vector<cl_float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float> h_optical_radii(num_objects);
         std::vector<cl_int> h_deprecated(num_objects);
+
+        cl::Buffer d_positions;
+        cl::Buffer d_velocities;
+        cl::Buffer d_orientations_r;
+        cl::Buffer d_orientations_f;
+        cl::Buffer d_orientations_u;
+        cl::Buffer d_local_times;
+        cl::Buffer d_masses;
+        cl::Buffer d_optical_radii;
+        cl::Buffer d_deprecated;
 
         int input;
         int INPUT_METHOD = I_KEY;

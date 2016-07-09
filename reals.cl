@@ -6,6 +6,7 @@ __kernel void reals(
         __global float3* orientations_u,
         __global float* local_times,
         __global float* masses,
+        __global float* optical_radii,
         __global int* deprecated,
         const unsigned int width,
         const unsigned int height,
