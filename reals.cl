@@ -38,45 +38,42 @@ float3 ray_trace(
     __global float* orientations_f,
     __global float* orientations_u,
     __global float* masses,
+    __global float* optical_radii,
+    __global int* is_black_hole,
     __global int* deprecated,
-    __global float* relevant_radii,
     const float cur_time,
     const int num_objects,
     float3 start_point,
-    float3 start_ray,) {
-
+    float3 start_ray) {
+    float gravitational_radii[num_objects];
+    float relevant_radii[num_objects];
     int sizeable_objects[num_objects];
     float distance_traveled = 0.0;
-    for (int i = 0; i < num_objects; i++) {
-        sizeable_objects[i] = 1;
-    }
-
     int num_sizable = num_objects;
     float ray_time = 0;
     float3 ray_position = start_point;
     combined_ratio = 0;
     for (int i = 0; i < num_objects; i++) {
+	gravitational_radii[i] = gravitational_ratio *
+            schwarzschild_radius(masses[i]);
+	relevant_radii[i] = max(gravitational_radii[i], optical_radii[i]);
+        sizeable_objects[i] = 1;
         combined_ratio += schwarzschild_radius(masses[cur_time * num_objects +
 		i]) / distance(start_point, positions[cur_time * num_objects +
 		i]);
     }
     float3 ray_velocity = SPEED_OF_LIGHT * combined_ratio * normalize(start_ray);
-
-
     while(num_sizeable > 0) {
         for (int i = 0; i < num_objects; i++) {
-            if (distance_traveled > VISIBLE_PARALLAX * relevant_radii[i]) {
+            if (sizeable_objects[i] == 1 && (deprecated[i] || distance_traveled
+                > VISIBLE_PARALLAX * relevant_radii[i])) {
                 sizeable_objects[i] = 0;
                 num_sizeable--;
             }
         }
-
         int relevant_objects[num_objects];
-
-        int num_relevant = num_objects;
-
+        int num_relevant = 0;
         float3 relative_positions[num_objects];
-
         for (int i = 0; i < num_objects; i++) {
             relative_positions[i] = ray_position - positions[tick_index(ray_time,
                 history_length, end_tick)];
@@ -86,7 +83,6 @@ float3 ray_trace(
             distance_squared[i] = dot(relative_positions[i],
                 relative_positions[i]);
         }
-
         for (int i = 0; i < num_objects; i++) {
             if (sizeable_objects[i] == 1 && masses[tick_index(ray_time,
                 history_length, end_tick)] >
@@ -126,8 +122,8 @@ float3 ray_trace(
             gravitational_positions[i] = ray_position -
                 positions[(USE_INSTANT_GRAVITY ? tick_index(ray_time,
 		history_length, end_tick) : find_worldline_intersection(time -
-		relative_position[i] / (SPEED_OF_LIGHT - top_speeds[i]), time -
-		relative_position[i] / (SPEED_OF_LIGHT + top_speeds[i]), time, i,
+		relative_positions[i] / (SPEED_OF_LIGHT - top_speeds[i]), time -
+		relative_positions[i] / (SPEED_OF_LIGHT + top_speeds[i]), time, i,
 		ray_position))];
         }
         int relative_velocities[num_objects]
@@ -187,9 +183,9 @@ float3 ray_trace(
             if (relevant_objects[i] == 1) {
                 if (is_sphere[i]) {
                     if (distance(new_position, positions[tick_index(ray_time,
-                        history_length, end_tick)]) < is_black_hole[i] ?
-                        schwarzschild(masses[tick_index(ray_time, history_length,
-                        end_tick)]) : visible_radii[i]) {
+                        history_length, end_tick)]) < is_black_hole[i] == 1 ?
+                        schwarzschild_radius(masses[tick_index(ray_time,
+                        history_length, end_tick)]) : optical_radii[i]) {
                         return colours[i];
                     }
                 } else {
@@ -225,7 +221,7 @@ int tick_index(int ray_time, int history_length, int end_tick) {
     return (end_tick - ray_time + history_length) % history_length;
 }
 
-float schwarzschild(float mass) {
+float schwarzschild_radius(float mass) {
     return 2 * GRAVITATIONAL_CONSTANT * mass / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
 }
 
