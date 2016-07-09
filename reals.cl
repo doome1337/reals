@@ -176,23 +176,65 @@ float3 ray_trace(
 					velocities[ray_time * num_objects));
 			}
 		}
-		ray_position += 0.166667 * (ray_velocity + 2 *
-			(velocity2 + velocity3) + velocity4);
-
+		float3 new_position = ray_position + 0.166667 * (ray_velocity +
+			2 * (velocity2 + velocity3) + velocity4);
+		ray_time--;
 		combined_ratio = 0;
 		for (int i = 0; i < num_objects; i++) {
 			if (relevant_objects[i] == 1) {
 				combined_ratio +=
 					schwarzschild_radius(masses[ray_time *
 					num_objects + i]) /
-					distance(ray_position,
+					distance(new_position,
 					positions[cur_time * num_objects + i]);
 			}
 		}
 		ray_velocity = SPEED_OF_LIGHT * factor(combined_ratio) *
 		normalize(ray_velocity + 0.166667 * (acceleration1 + 2 *
 			(acceleration2 + acceleration3) + acceleration4));
-		time--;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				if (is_sphere[i]) {
+					if (distance(new_position,
+						positions[ray_time * num_objects
+						+ i]) < is_black_hole[i] ?
+						schwarzschild(masses[ray_time *
+						num_objects + i]) :
+						visible_radii[i]) {
+						return colours[ray_time *
+						num_objects + i];
+					}
+				} else {
+					for (int j = 0; j < num_faces[i]; j++) {
+						float stretch = dot(normals[i][j] - ray_position, normals[i][j]) / dot(new_position - ray_position, normals[i][j]);
+						if (stretch > 0 && stretch < 1) {
+							float3 u =
+								faces[i][j][1] -
+								faces[i][j][0],
+								v =
+								faces[i][j][2] -
+								faces[i][j][0],
+								w =
+								(ray_position +
+								stretch *
+								(new_position -
+								ray_position)) -
+								faces[i][j][0];
+							if (length(cross(u, w)) +
+								length(cross(w,
+								v)) <
+								length(cross(u,
+								v)) &&
+								signbit(dot(cross(u, w), cross(u, v))) == 0 && signbit(dot(cross(w, v), cross(u, v))) == 0) {
+								return colours[ray_time * num_objects][j];
+							}
+						}
+					}
+				}
+			}
+		}
+		ray_position = new_position;
+		ray_velocity = new_position - ray_position;
 	}
 
         return (float3)
