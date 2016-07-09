@@ -45,73 +45,90 @@
 #define EXIT_CODE (81)
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
-        if (output_method & O_WINDOW) {
-                cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
-        }
-        if (output_method & O_FILE) {
-                video_output->open(
-                        OUTPUT_FILE_NAME,
-                        CV_FOURCC('F','M','P','4'),
-                        TICKS_PER_SECOND,
-                        cv::Size(WIDTH, HEIGHT),
-                        true);
-        }
+    if (output_method & O_WINDOW) {
+        cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+    }
+    if (output_method & O_FILE) {
+        video_output->open(
+                OUTPUT_FILE_NAME,
+                CV_FOURCC('F','M','P','4'),
+                TICKS_PER_SECOND,
+                cv::Size(WIDTH, HEIGHT),
+                true);
+    }
 }
 
 int fetch_input(int input_method) {
-        if (input_method & I_KEY) {
-                int input = cv::waitKey(1000/TICKS_PER_SECOND);
-                if (input == -1) {
-                        return 0;
-                }
-                if (input == EXIT_CODE) {
-                        return -1;
-                }
-                return input;
-        } else if (input_method & I_FILE) {
-                return (-1);
-                // TODO: Make this read a file.
-        } else {
-                return (-1);
+    if (input_method & I_KEY) {
+        int input = cv::waitKey(1000/TICKS_PER_SECOND);
+        if (input == -1) {
+            return 0;
         }
+        if (input == EXIT_CODE) {
+            return -1;
+        }
+        return input;
+    } else if (input_method & I_FILE) {
+        return (-1);
+        // TODO: Make this read a file.
+    } else {
+        return (-1);
+    }
 }
 
-void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_output) {
-        if (output_method & O_WINDOW) {
-                cv::imshow(WINDOW_NAME, frame);
-        }
-        if (output_method & O_FILE) {
-                (*video_output) << frame;
-        }
+void output_image(
+        int output_method,
+        cv::Mat frame,
+        cv::VideoWriter* video_output) {
+    if (output_method & O_WINDOW) {
+        cv::imshow(WINDOW_NAME, frame);
+    }
+    if (output_method & O_FILE) {
+        (*video_output) << frame;
+    }
 }
 
 int main(int argc, char** argv) {
-        int num_objects = 10;
+    int num_objects = 10;
 
-        std::vector<cl_float3> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientation_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float> h_local_time(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_int> h_deprecated(num_objects);
+    const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
+    std::vector<cl_float3> h_positions(num_objects*history_length);
+    std::vector<cl_float3> h_velocities(num_objects*history_length);
+    std::vector<cl_float3> h_orientations_r(num_objects*history_length);
+    std::vector<cl_float3> h_orientations_f(num_objects*history_length);
+    std::vector<cl_float3> h_orientations_u(num_objects*history_length);
+    std::vector<cl_float> h_local_times(num_objects*history_length);
+    std::vector<cl_float> h_masses(num_objects*history_length);
+    std::vector<cl_float> h_optical_radii(num_objects);
+    std::vector<cl_int> h_deprecated(num_objects);
+    int start_tick = 0;
+    int end_tick = 0;
 
-        int input;
-        int INPUT_METHOD = I_KEY;
-        int OUTPUT_METHOD = O_WINDOW | O_FILE;
-        if (INPUT_METHOD & I_KEY) {
-                OUTPUT_METHOD |= O_WINDOW;
-        }
+    cl::Buffer d_positions;
+    cl::Buffer d_velocities;
+    cl::Buffer d_orientations_r;
+    cl::Buffer d_orientations_f;
+    cl::Buffer d_orientations_u;
+    cl::Buffer d_local_times;
+    cl::Buffer d_masses;
+    cl::Buffer d_optical_radii;
+    cl::Buffer d_deprecated;
 
-        cv::VideoWriter video_output;
+    int input;
+    int INPUT_METHOD = I_KEY;
+    int OUTPUT_METHOD = O_WINDOW | O_FILE;
+    if (INPUT_METHOD & I_KEY) {
+        OUTPUT_METHOD |= O_WINDOW;
+    }
 
-        init_output(OUTPUT_METHOD, &video_output);
+    cv::VideoWriter video_output;
 
-        cv::Mat frame(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,0,0));
+    init_output(OUTPUT_METHOD, &video_output);
 
-        while ((input = fetch_input(INPUT_METHOD)) != -1) {
-                output_image(OUTPUT_METHOD, frame, &video_output);
-        }
-        return(0);
+    cv::Mat frame(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,0,0));
+
+    while ((input = fetch_input(INPUT_METHOD)) != -1) {
+        output_image(OUTPUT_METHOD, frame, &video_output);
+    }
+    return(0);
 }
