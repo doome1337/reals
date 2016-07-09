@@ -124,8 +124,70 @@ int main(int argc, char** argv) {
 
         cv::Mat frame(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,0,0));
 
-        while ((input = fetch_input(INPUT_METHOD)) != -1) {
+        try 
+        {
+            // Create a context
+            cl::Context context(DEVICE);
+
+            // Load in kernel source, creating a program object for the context
+
+            cl::Program program(context, util::loadProgram("reals.cl"), true);
+
+            // Get the command queue
+            cl::CommandQueue queue(context);
+
+            // Create the kernel functor
+
+            auto reals = cl::make_kernel<
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                cl::Buffer,
+                unsigned int,
+                unsigned int,
+                unsigned int,
+                unsigned int,
+                unsigned int,
+                unsigned int,
+                float>(program, "reals");
+
+            /*d_colors  = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(unsigned char)*3*WIDTH*HEIGHT);
+
+            sim(
+                    cl::EnqueueArgs(
+                        queue,
+                        cl::NDRange(HEIGHT, WIDTH)), 
+                    d_colors,
+                    HEIGHT,
+                    WIDTH,
+                    DISTANCE,
+                    SCREEN_DIST2,
+                    PIX_HEIGHT,
+                    PIX_WIDTH);
+
+            queue.finish();
+
+            cl::copy(queue, d_colors, begin(h_colors), end(h_colors));*/
+
+            while ((input = fetch_input(INPUT_METHOD)) != -1) {
                 output_image(OUTPUT_METHOD, frame, &video_output);
+            }
+            return 0;
+        }
+        catch (cl::Error err) {
+            std::cout << "Exception\n";
+            std::cerr 
+                << "ERROR: "
+                << err.what()
+                << "("
+                << err_code(err.err())
+                << ")"
+                << std::endl;
         }
         return(0);
 }
