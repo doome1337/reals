@@ -112,8 +112,8 @@ int main(int argc, char** argv) {
         cl::Buffer d_deprecated;
 
         int input;
-        int INPUT_METHOD = I_KEY;
-        int OUTPUT_METHOD = O_WINDOW | O_FILE;
+        int INPUT_METHOD = I_FILE;
+        int OUTPUT_METHOD = O_FILE;
         if (INPUT_METHOD & I_KEY) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
