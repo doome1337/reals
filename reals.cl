@@ -1,6 +1,6 @@
 // TODO LIST:
 // Make ray_time an int
-// 
+//
 __kernel void reals (
     __global float3* positions,
     __global float3* velocities,
@@ -39,11 +39,15 @@ float schwarzschild_radius(
         const float SPEED_OF_LIGHT);
 
 int find_worldline_intersection (
-        float min_time,
-        float max_time,
-        float time,
+        int min_time,
+        int max_time,
+        int time,
         int object_index,
-        float3 position);
+        float3* positions,
+        float3 ray_position,
+        const float SPEED_OF_LIGHT,
+        const int end_tick,
+        const int history_length);
 
 float3 acceleration (
         float3 relative_position,
@@ -54,7 +58,7 @@ float factor(
         const int USE_ALTERNATE_FACTOR,
         const float LIGHT_SLOWING_RATIO);
 
-float3 ray_trace(
+uchar3 ray_trace(
         __global float3* positions,
         __global float3* velocities,
         __global float3* orientations_r,
@@ -112,7 +116,7 @@ float3 ray_trace(
                 num_sizeable--;
             }
         }
-        
+
         int relevant_objects[num_objects];
         int num_relevant = 0;
         float3 relative_positions[num_objects];
@@ -136,7 +140,7 @@ float3 ray_trace(
                 num_relevant++;
             }
         }
-        
+
         if (!APPLY_LENSING || num_relevant == 0) {
             float min_step = MAXFLOAT;
             for (int i = 0; i < num_objects; i++) {
@@ -162,20 +166,22 @@ float3 ray_trace(
                 continue;
             }
         }
-        
+
         float3 gravitational_positions[num_objects];
         for (int i = 0; i < num_objects; i++) {
             gravitational_positions[i] = (
                 ray_position - positions[(USE_INSTANT_GRAVITY ?
                     tick_index(ray_time, history_length, end_tick) :
                     find_worldline_intersection(
-                        ray_time - (length(relative_positions[i]) /
-                        (SPEED_OF_LIGHT - top_speeds[i])),
-                        ray_time - (length(relative_positions[i]) /
-                        (SPEED_OF_LIGHT + top_speeds[i])),
-                        ray_time, i, ray_position))]);
+                        floor(ray_time + (length(relative_positions[i]) /
+                        (SPEED_OF_LIGHT + top_speeds[i]))),
+                        ceil(ray_time + (length(relative_positions[i]) /
+                        (SPEED_OF_LIGHT - top_speeds[i]))),
+                        ray_time, i,
+                        positions, ray_position,
+                        SPEED_OF_LIGHT, end_tick, history_length))]);
         }
-        
+
         float3 relative_velocities[num_objects];
         float3 acceleration1 = 0;
         float3 acceleration2 = 0;
@@ -215,7 +221,7 @@ float3 ray_trace(
                     masses[tick_index(ray_time, history_length, end_tick)]));
             }
         }
-        
+
         float3 new_position = ray_position + 0.166667 * (ray_velocity + 2.0 *
             (velocity2 + velocity3) + velocity4);
         ray_time++;
@@ -232,7 +238,7 @@ float3 ray_trace(
                         positions[end_tick * num_objects + i]));
             }
         }
-        
+
         ray_velocity = (
             SPEED_OF_LIGHT * factor(
                 combined_ratio,
@@ -242,7 +248,7 @@ float3 ray_trace(
                     acceleration1 +
                     2 * (acceleration2 + acceleration3) +
                     acceleration4)));
-        
+
         for (int i = 0; i < num_objects; i++) {
             if (relevant_objects[i] == 1) {
                 if (is_sphere[i]) {
@@ -262,7 +268,7 @@ float3 ray_trace(
                                 SPEED_OF_LIGHT) :
                             optical_radii[i])) {
                         //return colours[i];
-                        return (float3) (0.0, 0.0, 0.0);
+                        return (uchar3) (0, 0, 0);
                     }
                 }/* else {
                     for (int j = 0; j < num_faces[i]; j++) {
@@ -291,7 +297,7 @@ float3 ray_trace(
         ray_velocity = new_position - ray_position;
     }
 
-    return (float3) (0.0, 0.0, 0.0);
+    return (uchar3) (0, 0, 0);
 }
 
 int tick_index(int ray_time, int history_length, int end_tick) {
@@ -330,28 +336,46 @@ float3 acceleration (float3 relative_position, float3 velocity, float mass) {
         / length(relative_position)
         / length(relative_position)
         / length(relative_position);
-        
+
 }
 
+// THINGS TO ADD:
+// use ITO
+// convert what is needed to int
 int find_worldline_intersection (
-    int min_time,
-    int max_time,
-    int time,
-    int object_index,
-    float3 position,
-    ) {
-    int lower_bound = min_time;
-    int upper_bound = max_time;
-    while (true) {
-        if (upper_bound - lower_bound <= 1) {
+        int min_time,
+        int max_time,
+        int time,
+        int object_index,
+        float3* positions,
+        float3 ray_position,
+        const float SPEED_OF_LIGHT,
+        const int end_tick,
+        const int history_length) {
+    int lower_bound = max(min_time, 0);
+    int upper_bound = min(max_time, history_length-1);
+    const int iterations = 2*log2(history_length);
+    for (int i = 0; i < iterations; i++) {
+        if (upper_bound == lower_bound) {
              return lower_bound;
         }
-        int half_time = round(0.5 * (lower_bound + upper_bound));
-        if (SPEED_OF_LIGHT * SPEED_OF_LIGHT * (time - half_time) *
-            (time - half_time) > dot(positions[half_time][object_index],positions[half_time][object_index])) {
-            lower_bound = half_time;
-        } else {
+        int half_time = (lower_bound + upper_bound) / 2;
+        if (
+            (
+                SPEED_OF_LIGHT * (half_time - time)) >
+            distance(
+                positions[index_time_obj(
+                    tick_index(
+                        half_time,
+                        history_length,
+                        end_tick),
+                    object_index)],
+                ray_position)) {
+            // If (ct)>d, we're looking too far in the past.
             upper_bound = half_time;
+        } else {
+            lower_bound = half_time+1;
         }
     }
+    return lower_bound;
 }
