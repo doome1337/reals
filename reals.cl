@@ -59,9 +59,8 @@ float3 ray_trace(
             schwarzschild_radius(masses[i]);
 	relevant_radii[i] = max(gravitational_radii[i], optical_radii[i]);
         sizeable_objects[i] = 1;
-        combined_ratio += schwarzschild_radius(masses[tick_index(cur_time,
-            history_length, end_tick)]) / distance(start_point,
-            positions[tick_index(cur_time, history_length, end_tick)]);
+        combined_ratio += schwarzschild_radius(masses[end_tick]) /
+            distance(start_point, positions[end_tick]);
     }
     float3 ray_velocity = SPEED_OF_LIGHT * combined_ratio * normalize(start_ray);
     while(num_sizeable > 0) {
@@ -223,7 +222,7 @@ int tick_index(int ray_time, int history_length, int end_tick) {
 }
 
 float schwarzschild_radius(float mass) {
-    return 2 * GRAVITATIONAL_CONSTANT * mass / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
+    return 2.0 * GRAVITATIONAL_CONSTANT * mass / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
 }
 
 float factor(float ratio) {
