@@ -31,6 +31,31 @@
 #define VISIBLE_PARALLAX (512)
 #define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
 
+#define I_KEY (1)
+#define I_FILE (2)
+#define O_WINDOW (1)
+#define O_FILE (2)
+
+void init_output(int OUTPUT_METHOD) {
+        if (OUTPUT_METHOD & O_WINDOW) {
+        }
+        if (OUTPUT_METHOD & O_FILE) {
+        }
+}
+
+int fetch_input(int method) {
+        if (method & I_KEY) {
+                // return cv::waitKey(1000/TICKS_PER_SECOND);
+                return (-1);
+                // TODO: Uncomment upon finishing of `init_output`.
+        } else if (method & I_FILE) {
+                return (-1);
+                // TODO: Make this read a file.
+        } else {
+                return (-1);
+        }
+}
+
 int main(int argc, char** argv) {
         int num_objects = 10;
 
@@ -43,5 +68,17 @@ int main(int argc, char** argv) {
         std::vector<float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         std::vector<int> h_deprecated(num_objects);
 
+        int input;
+        int INPUT_METHOD = I_KEY;
+        int OUTPUT_METHOD = O_WINDOW | O_FILE;
+        if (INPUT_METHOD & I_KEY) {
+                OUTPUT_METHOD |= O_WINDOW;
+        }
+
+        init_output(OUTPUT_METHOD);
+
+        while ((input = fetch_input(INPUT_METHOD)) != -1) {
+
+        }
         return(0);
 }
