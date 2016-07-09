@@ -31,28 +31,57 @@
 #define VISIBLE_PARALLAX (512)
 #define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
 
+#define WIDTH (160)
+#define HEIGHT (120)
+
 #define I_KEY (1)
 #define I_FILE (2)
 #define O_WINDOW (1)
 #define O_FILE (2)
 
-void init_output(int OUTPUT_METHOD) {
-        if (OUTPUT_METHOD & O_WINDOW) {
+#define WINDOW_NAME "REALS"
+#define OUTPUT_FILE_NAME "test.avi"
+
+#define EXIT_CODE (81)
+
+void init_output(int output_method, cv::VideoWriter* video_output) {
+        if (output_method & O_WINDOW) {
+                cv::namedWindow(WINDOW_NAME, cv::WINDOW_AUTOSIZE);
         }
-        if (OUTPUT_METHOD & O_FILE) {
+        if (output_method & O_FILE) {
+                video_output->open(
+                        OUTPUT_FILE_NAME,
+                        CV_FOURCC('F','M','P','4'),
+                        TICKS_PER_SECOND,
+                        cv::Size(WIDTH, HEIGHT),
+                        true);
         }
 }
 
-int fetch_input(int method) {
-        if (method & I_KEY) {
-                // return cv::waitKey(1000/TICKS_PER_SECOND);
-                return (-1);
-                // TODO: Uncomment upon finishing of `init_output`.
-        } else if (method & I_FILE) {
+int fetch_input(int input_method) {
+        if (input_method & I_KEY) {
+                int input = cv::waitKey(1000/TICKS_PER_SECOND);
+                if (input == -1) {
+                        return 0;
+                }
+                if (input == EXIT_CODE) {
+                        return -1;
+                }
+                return input;
+        } else if (input_method & I_FILE) {
                 return (-1);
                 // TODO: Make this read a file.
         } else {
                 return (-1);
+        }
+}
+
+void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_output) {
+        if (output_method & O_WINDOW) {
+                cv::imshow(WINDOW_NAME, frame);
+        }
+        if (output_method & O_FILE) {
+                (*video_output) << frame;
         }
 }
 
@@ -75,10 +104,14 @@ int main(int argc, char** argv) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
 
-        init_output(OUTPUT_METHOD);
+        cv::VideoWriter video_output;
+
+        init_output(OUTPUT_METHOD, &video_output);
+
+        cv::Mat frame(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,0,0));
 
         while ((input = fetch_input(INPUT_METHOD)) != -1) {
-
+                output_image(OUTPUT_METHOD, frame, &video_output);
         }
         return(0);
 }
