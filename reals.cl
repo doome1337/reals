@@ -1,3 +1,6 @@
+// TODO LIST:
+// Make ray_time an int
+// 
 __kernel void reals (
     __global float3* positions,
     __global float3* velocities,
@@ -293,6 +296,10 @@ float3 ray_trace(
 
 int tick_index(int ray_time, int history_length, int end_tick) {
     return (end_tick - ray_time + history_length) % history_length;
+}
+
+int index_time_obj (int tick, int object, int num_objects) {
+    return tick*num_objects + object;
 }
 
 float schwarzschild_radius(
