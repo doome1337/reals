@@ -10,7 +10,12 @@ __kernel void reals (
     __global int* deprecated,
     const unsigned int width,
     const unsigned int height,
-    const float cur_time,) {
+    const unsigned int num_objects,
+    const unsigned int history_length,
+    const unsigned int start_tick,
+    const unsigned int end_tick,
+    const float cur_time,
+    ) {
     int i = get_global_id(0);
     int j = get_global_id(1);
     if (i < width && j < height) {
@@ -205,4 +210,8 @@ float3 ray_trace(
     }
 
     return (float3)
+}
+
+int tick_index(int raytime, int history_length, int start_tick, int end_tick) {
+    return (end_tick - raytime + history_length) % history_length
 }

@@ -88,15 +88,18 @@ void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_outpu
 int main(int argc, char** argv) {
         int num_objects = 10;
 
-        std::vector<cl_float3> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientations_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientations_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float3> h_orientations_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float> h_local_times(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<cl_float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
+        std::vector<cl_float3> h_positions(num_objects*history_length);
+        std::vector<cl_float3> h_velocities(num_objects*history_length);
+        std::vector<cl_float3> h_orientations_r(num_objects*history_length);
+        std::vector<cl_float3> h_orientations_f(num_objects*history_length);
+        std::vector<cl_float3> h_orientations_u(num_objects*history_length);
+        std::vector<cl_float> h_local_times(num_objects*history_length);
+        std::vector<cl_float> h_masses(num_objects*history_length);
         std::vector<cl_float> h_optical_radii(num_objects);
         std::vector<cl_int> h_deprecated(num_objects);
+        int start_tick = 0;
+        int end_tick = 0;
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
