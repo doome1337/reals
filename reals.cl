@@ -281,8 +281,28 @@ uchar3 ray_trace(
                                 GRAVITATIONAL_CONSTANT,
                                 SPEED_OF_LIGHT) :
                             optical_radii[i])) {
-                        //return colours[i];
-                        return (uchar3) (0, 0, 0);
+                        return perceived_colour(i,
+                            ray_velocity,
+                            ray_time,
+                            wavelengths[index_tick_obj(tick_index(
+                            ray_time,
+                            history_length,
+                            end_tick), i, num_objects)],
+                            start_ray,
+                            cur_time,
+                            num_objects,
+                            end_tick,
+                            history_length,
+                            MASSIVE_BOUND,
+                            GRAVITATIONAL_CONSTANT,
+                            SPEED_OF_LIGHT,
+                            INTENSITY_FACTOR,
+                            masses,
+                            positions,
+                            velocities,
+                            APPLY_SR_RS,
+                            APPLY_GR_RS,
+                            APPLY_INTENSITY);
                     }
                 }/* else {
                     for (int j = 0; j < num_faces[i]; j++) {
