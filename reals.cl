@@ -55,7 +55,7 @@ float3 ray_trace(
     float3 ray_position = start_point;
     combined_ratio = 0;
     for (int i = 0; i < num_objects; i++) {
-	gravitational_radii[i] = gravitational_ratio *
+	gravitational_radii[i] = GRAVITATIONAL_RATIO *
             schwarzschild_radius(masses[i]);
 	relevant_radii[i] = max(gravitational_radii[i], optical_radii[i]);
         sizeable_objects[i] = 1;
