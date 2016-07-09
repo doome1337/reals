@@ -229,3 +229,11 @@ float schwarzschild(float mass) {
     return 2 * GRAVITATIONAL_CONSTANT * mass / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
 }
 
+float factor(float ratio) {
+    if (USE_ALTERNATE_FACTOR) {
+        return (1 - LIGHT_SLOWING_RATIO * ratio) * (1 - LIGHT_SLOWING_RATIO *
+        ratio);
+    } else {
+        return (1 - ratio) / (1 + ratio) / (1 + ratio) / (1 + ratio);
+    }
+}
