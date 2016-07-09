@@ -137,7 +137,62 @@ float3 ray_trace(
 				(SPEED_OF_LIGHT + top_speeds[i]), time, i,
 				ray_position)) * num_objects + i];
 		}
-		
+		int relative_velocities[num_objects]
+		float3 acceleration1 = 0;
+		float3 acceleration2 = 0;
+		float3 acceleration3 = 0;
+		float3 acceleration4 = 0;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				acceleration1 +=
+					acceleration(relative_positions[i],
+					relative_velocities[i]);
+			}
+		}
+		float3 velocity2 = ray_velocity + 0.5 * acceleration1;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				acceleration2 +=
+					acceleration(relative_positions[i],
+					normalize(velocity2 -
+					velocities[ray_time * num_objects));
+			}
+		}
+		float3 velocity3 = ray_velocity + 0.5 * acceleration1;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				acceleration3 +=
+					acceleration(relative_positions[i],
+					normalize(velocity3 -
+					velocities[ray_time * num_objects));
+			}
+		}
+		float3 velocity4 = ray_velocity + 0.5 * acceleration1;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				acceleration4 +=
+					acceleration(relative_positions[i],
+					normalize(velocity3 -
+					velocities[ray_time * num_objects));
+			}
+		}
+		ray_position += 0.166667 * (ray_velocity + 2 *
+			(velocity2 + velocity3) + velocity4);
+
+		combined_ratio = 0;
+		for (int i = 0; i < num_objects; i++) {
+			if (relevant_objects[i] == 1) {
+				combined_ratio +=
+					schwarzschild_radius(masses[ray_time *
+					num_objects + i]) /
+					distance(ray_position,
+					positions[cur_time * num_objects + i]);
+			}
+		}
+		ray_velocity = SPEED_OF_LIGHT * factor(combined_ratio) *
+		normalize(ray_velocity + 0.166667 * (acceleration1 + 2 *
+			(acceleration2 + acceleration3) + acceleration4));
+		time--;
 	}
 
         return (float3)
