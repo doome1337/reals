@@ -1,5 +1,5 @@
-Relativistic Effects Affecting Light Simulation
-===========================================
+Relativistic Effects Acting on Light Simulation
+===============================================
 
-The *Relativistic Effects Affecint Light Simulation (REALS)*
-is a simulator designed to demonstrate relativistic effects.
+The *Relativistic Effects Acting on Light Simulation (REALS)* is a simulator
+designed to demonstrate relativistic effects from a first person perspective.
