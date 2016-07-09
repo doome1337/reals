@@ -36,19 +36,15 @@ float schwarzschild_radius(
         const float SPEED_OF_LIGHT);
 
 int find_worldline_intersection (
-        float a,
-        float b,
-        float c,
-        int d,
-        float3 e) {
-    return 0;
-}
+        float min_time,
+        float max_time,
+        float time,
+        int object_index,
+        float3 position);
 
 float3 acceleration (
-        float3 a,
-        float3 b) {
-    return (float3) (0.0, 0.0, 0.0);
-}
+        float3 relative_position,
+        float3 velocity);
 
 float factor(
         float ratio,
@@ -185,7 +181,8 @@ float3 ray_trace(
         for (int i = 0; i < num_objects; i++) {
             if (relevant_objects[i] == 1) {
                 acceleration1 += acceleration(gravitational_positions[i],
-                    relative_velocities[i]);
+                    relative_velocities[i],
+                    masses[tick_index(ray_time, history_length, end_tick)]);
             }
         }
         float3 velocity2 = ray_velocity + 0.5 * acceleration1;
@@ -193,7 +190,8 @@ float3 ray_trace(
             if (relevant_objects[i] == 1) {
                 acceleration2 += acceleration(gravitational_positions[i],
                     length(velocity2) * normalize(velocity2 -
-                    velocities[tick_index(ray_time, history_length, end_tick)]));
+                    velocities[tick_index(ray_time, history_length, end_tick)],
+                    masses[tick_index(ray_time, history_length, end_tick)]));
             }
         }
         float3 velocity3 = ray_velocity + 0.5 * acceleration2;
@@ -201,7 +199,8 @@ float3 ray_trace(
             if (relevant_objects[i] == 1) {
                 acceleration3 += acceleration(gravitational_positions[i],
                     length(velocity3) * normalize(velocity3 -
-                    velocities[tick_index(ray_time, history_length, end_tick)]));
+                    velocities[tick_index(ray_time, history_length, end_tick)],
+                    masses[tick_index(ray_time, history_length, end_tick)]));
             }
         }
         float3 velocity4 = ray_velocity + acceleration3;
@@ -209,7 +208,8 @@ float3 ray_trace(
             if (relevant_objects[i] == 1) {
                 acceleration4 += acceleration(gravitational_positions[i],
                     length(velocity4) * normalize(velocity4 -
-                    velocities[tick_index(ray_time, history_length, end_tick)]));
+                    velocities[tick_index(ray_time, history_length, end_tick)],
+                    masses[tick_index(ray_time, history_length, end_tick)]));
             }
         }
         
@@ -311,5 +311,40 @@ float factor(
         ratio);
     } else {
         return (1 - ratio) / (1 + ratio) / (1 + ratio) / (1 + ratio);
+    }
+}
+
+float3 acceleration (float3 relative_position, float3 velocity, float mass) {
+    return -1.5 * relative_position * schwarzschild_radius(mass) * dot(
+        cross(relative_position, velocity),
+        cross(relative_position, velocity))
+        / length(relative_position)
+        / length(relative_position)
+        / length(relative_position)
+        / length(relative_position)
+        / length(relative_position);
+        
+}
+
+int find_worldline_intersection (
+    int min_time,
+    int max_time,
+    int time,
+    int object_index,
+    float3 position,
+    ) {
+    int lower_bound = min_time;
+    int upper_bound = max_time;
+    while (true) {
+        if (upper_bound - lower_bound <= 1) {
+             return lower_bound;
+        }
+        int half_time = round(0.5 * (lower_bound + upper_bound));
+        if (SPEED_OF_LIGHT * SPEED_OF_LIGHT * (time - half_time) *
+            (time - half_time) > dot(positions[half_time][object_index],positions[half_time][object_index])) {
+            lower_bound = half_time;
+        } else {
+            upper_bound = half_time;
+        }
     }
 }
