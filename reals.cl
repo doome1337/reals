@@ -74,11 +74,70 @@ float3 ray_trace(
 		
 		int num_relevant = num_objects;
 		
+		float3 relative_positions[num_objects];
+
+		for (int i = 0; i < num_objects; i++) {
+			relative_positions[i] = ray_position -
+				positions[ray_time * num_objects + i];
+		}
+		float distance_squared[num_objects];
+		for (int i = 0; i < num_objects; i++) {
+			distance_squared[i] = dot(relative_positions[i],
+				relative_positions[i]);
+		}
+
 		for (int i = 0; i < num_objects; i++) {
 			if (sizeable_objects[i] == 1 &&
-				masses[time_index * num_objects + i] >
-				MASSIVE_BOUND && 
+				masses[ray_time * num_objects + i] >
+				MASSIVE_BOUND && distance_squared[i] <
+				gravitational_radii[ray_time * num_objects + i] *
+				gravitational_radii[ray_time * num_objects +
+				i]) {
+				relevant_objects[num_objects] = 1;
+				num_relevant++;
+			}
 		}
+		if (!APPLY_LENSING || num_relevant == 0) {
+			min_step = MAXFLOAT;
+			for (int i = 0; i < num_objects; i++) {
+				if (sizeable_objects[i] == 1) {
+					quadratic_term = SPEED_OF_LIGHT *
+						SPEED_OF_LIGHT - top_speeds[i] *
+						top_speeds[i];
+					linear_term = SPEED_OF_LIGHT *
+						dot(relative_positions[i],
+						normalize(ray_velocity)) +
+						top_speed[i] *
+						gravitational_radii[ray_time *
+						num_objects + i];
+					min_step = min(USE_LONG_STEP ?
+						(linear_term - sqrt(linear_term *
+						linear_term - quadratic_term *
+						(distance squared[i] -
+						gravitational_radii[ray_time *
+						num_objects + i] *
+						gravitational_radii[ray_time *
+						num_objects + i]))) /
+						quadratic_term :
+						0.5 * quadratic_term /
+						linear_term, min_step);
+				}
+				ray_position += min_step * velocity;
+				ray_time -= min_step;
+				continue;
+			}
+		}
+		int gravitational_positions[num_objects];
+		for (int i = 0; i < num_objects; i++) {
+			gravitational_positions[i] = ray_position -
+				positions[(USE_INSTANT_GRAVITY ? ray_time :
+				find_worldline_intersection(time -
+				relative_position[i] / (SPEED_OF_LIGHT -
+				top_speeds[i]), time - relative_position[i] /
+				(SPEED_OF_LIGHT + top_speeds[i]), time, i,
+				ray_position)) * num_objects + i];
+		}
+		
 	}
 
         return (float3)
