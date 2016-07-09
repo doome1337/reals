@@ -51,6 +51,7 @@ float3 ray_trace(
     float distance_traveled = 0.0;
     int num_sizable = num_objects;
     float ray_time = 0;
+    float min_step;
     float3 ray_position = start_point;
     combined_ratio = 0;
     for (int i = 0; i < num_objects; i++) {
