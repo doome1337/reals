@@ -22,6 +22,26 @@
 #define DEVICE CL_DEVICE_TYPE_DEFAULT
 #endif
 
-int main() {
+#define TICKS_PER_SECOND (60)
+#define SECONDS_OF_MEMORY (150)
+
+#define MAX_INTENSITY_AT_REST (255)
+#define SPEED_OF_LIGHT (299792458.0)
+// ^ Make this a command line argument.
+#define VISIBLE_PARALLAX (512)
+#define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
+
+int main(int argc, char** argv) {
+        int num_objects = 10;
+
+        std::vector<float> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
+        std::vector<float> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
+        std::vector<float> h_orientation_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
+        std::vector<float> h_orientation_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
+        std::vector<float> h_orientation_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
+        std::vector<float> h_local_time(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<int> h_deprecated(num_objects);
+
         return(0);
 }
