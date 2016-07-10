@@ -23,7 +23,7 @@
 #endif
 
 #define TICKS_PER_SECOND (1)
-#define SECONDS_OF_MEMORY (150)
+#define SECONDS_OF_MEMORY (1000)
 
 #define MAX_INTENSITY_AT_REST (255)
 #define SPEED_OF_LIGHT (299792458.0)
@@ -106,7 +106,7 @@ std::vector<cl_float> h_optical_radii;
 std::vector<cl_int> h_deprecated;
 int ticks;
 int main(int argc, char** argv) {
-        int num_objects = 10;
+        int num_objects = 3;
         const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
 
         std::vector<cl_float> h_wavelengths(num_objects*history_length);
@@ -115,19 +115,18 @@ int main(int argc, char** argv) {
         std::vector<cl_int> h_boolean_constants(7, false);
         std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, ((cl_uchar3) {0, 0, 0}));
 
-        num_objects = 10;
         ticks = 0;
 
         h_positions = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         h_velocities = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        h_orientations_r = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        h_orientations_f = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        h_orientations_u = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_orientations_r = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY, (cl_float3) {0.0, -1.0, 0.0});
+        h_orientations_f = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY, (cl_float3) {1.0, 0.0, 0.0});
+        h_orientations_u = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY, (cl_float3) {0.0, 0.0, 1.0});
         h_local_times = std::vector<cl_float>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         h_masses = std::vector<cl_float>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
         h_top_speeds = std::vector<cl_float>(num_objects);
         h_optical_radii = std::vector<cl_float>(num_objects);
-        h_deprecated = std::vector<cl_int>(num_objects);
+        h_deprecated = std::vector<cl_int>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
 
         /*std::string line;
         std::ifstream myfile (CONFIG_FILE);
@@ -139,35 +138,50 @@ int main(int argc, char** argv) {
         float cur_time = 0.0;
         unsigned int start_tick = 0;
         unsigned int end_tick = 100;
+        std::cout << "test" << std::endl;
 
-        for (int i = 0; i < end_tick+10; i++) {
-            h_positions[2*i+0] = (cl_float3) {0.0, 0.0, 0.0};
-            h_positions[2*i+1] = (cl_float3) {3.0, 0.0, 0.0};
-            h_velocities[2*i+0] = (cl_float3) {0.0, 0.0, 0.0};
-            h_velocities[2*i+1] = (cl_float3) {0.0, 0.0, 0.0};
-            h_orientations_r[2*i+0] = (cl_float3) {0.0, -1.0, 0.0};
-            h_orientations_r[2*i+1] = (cl_float3) {1.0, 0.0, 0.0};
-            h_orientations_f[2*i+0] = (cl_float3) {1.0, 0.0, 0.0};
-            h_orientations_f[2*i+1] = (cl_float3) {0.0, 1.0, 0.0};
-            h_orientations_u[2*i+0] = (cl_float3) {0.0, 0.0, 1.0};
-            h_orientations_u[2*i+1] = (cl_float3) {0.0, 0.0, 1.0};
-            h_local_times[2*i+0] = 1.0;
-            h_local_times[2*i+1] = 1.0;
-            h_masses[2*i+0] = 0.0;
-            h_masses[2*i+1] = 100.0;
-            h_wavelengths[2*i+0] = 450.0;
-            h_wavelengths[2*i+1] = 500.0;
-            h_deprecated[2*i+0] = 0;
-            h_deprecated[2*i+1] = 0;
+        for (int i = 0; i < end_tick; i++) {
+            h_positions.at(3*i+0) = (cl_float3) {0.0, 0.0, 0.0};
+            h_positions.at(3*i+1) = (cl_float3) {3.0, 0.0, 0.0};
+            h_positions.at(3*i+2) = (cl_float3) {3.0, 0.0, 0.0};
+            h_velocities.at(3*i+0) = (cl_float3) {0.0, 0.0, 0.0};
+            h_velocities.at(3*i+1) = (cl_float3) {0.0, 0.0, 0.0};
+            h_velocities.at(3*i+2) = (cl_float3) {0.0, 0.0, 0.0};
+            h_orientations_r.at(3*i+0) = (cl_float3) {0.0, -1.0, 0.0};
+            h_orientations_r.at(3*i+1) = (cl_float3) {1.0, 0.0, 0.0};
+            h_orientations_r.at(3*i+2) = (cl_float3) {1.0, 0.0, 0.0};
+            h_orientations_f.at(3*i+0) = (cl_float3) {1.0, 0.0, 0.0};
+            h_orientations_f.at(3*i+1) = (cl_float3) {0.0, 1.0, 0.0};
+            h_orientations_f.at(3*i+2) = (cl_float3) {0.0, 1.0, 0.0};
+            h_orientations_u.at(3*i+0) = (cl_float3) {0.0, 0.0, 1.0};
+            h_orientations_u.at(3*i+1) = (cl_float3) {0.0, 0.0, 1.0};
+            h_orientations_u.at(3*i+2) = (cl_float3) {0.0, 0.0, 1.0};
+            h_local_times.at(3*i+0) = 1.0;
+            h_local_times.at(3*i+1) = 1.0;
+            h_local_times.at(3*i+2) = 1.0;
+            h_masses.at(3*i+0) = 0.0;
+            h_masses.at(3*i+1) = 100.0;
+            h_masses.at(3*i+2) = 100.0;
+            h_wavelengths.at(3*i+0) = 450.0;
+            h_wavelengths.at(3*i+1) = 700.0;
+            h_wavelengths.at(3*i+2) = 700.0;
+            h_deprecated.at(3*i+0) = 0;
+            h_deprecated.at(3*i+1) = 0;
+            h_deprecated.at(3*i+2) = 0;
         }
-        h_optical_radii[0] = 0.0;
-        h_optical_radii[1] = 0.5;
-        h_top_speeds[0] = 0.0;
-        h_top_speeds[1] = 0.0;
-        h_is_black_hole[0] = 0;
-        h_is_black_hole[1] = 0;
-        h_is_sphere[0] = 0;
-        h_is_sphere[1] = 1;
+        h_optical_radii.at(0) = 0.0;
+        h_optical_radii.at(1) = 0.5;
+        h_optical_radii.at(2) = 0.5;
+        h_top_speeds.at(0) = 0.0;
+        h_top_speeds.at(1) = 0.0;
+        h_top_speeds.at(2) = 0.0;
+        h_is_black_hole.at(0) = 0;
+        h_is_black_hole.at(1) = 0;
+        h_is_black_hole.at(2) = 0;
+        h_is_sphere.at(0) = 0;
+        h_is_sphere.at(1) = 1;
+        h_is_sphere.at(2) = 1;
+        std::cout << "test" << std::endl;
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
@@ -390,7 +404,7 @@ cl_float3 scale(cl_float scalar, cl_float3 vec) {
     return (cl_float3) {scalar*vec.s[0], scalar*vec.s[1], scalar*vec.s[2]};
 }
 
-void update() {
+/*void update() {
     for (int i = 0; i < num_objects; i++) {
         cl_float3 new_position = h_positions[index_time_obj(ticks, i, num_objects)];
         cl_float3 new_velocity = h_velocities[index_time_obj(ticks, i, num_objects)];
@@ -461,4 +475,4 @@ void update() {
             }
         }
     }
-}
+}*/
