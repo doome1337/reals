@@ -34,9 +34,11 @@
 #define MASSIVE_BOUND (1000000000.0)
 #define DECAY_PER_ORBIT (0.95)
 #define DECAY_COEFFICIENT (0.2)
+#define LIGHT_SLOWING_RATIO (4.0)
 
 #define USE_INSTANT_GRAVITY (0)
 #define APPLY_ORBIT_DECAY (0)
+#define USE_ALTERNATE_FACTOR (0)
 
 #define WIDTH (160)
 #define HEIGHT (120)
@@ -51,6 +53,12 @@
 #define OUTPUT_FILE_NAME "test.avi"
 #define CONFIG_FILE "data.csv"
 #define EXIT_CODE (81)
+
+int worldline(int min_time, int max_time, int time, int object_index, cl_float3 object_position);
+
+cl_float factor(float ratio);
+
+void update(int num_objects);
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
         if (output_method & O_WINDOW) {
@@ -106,7 +114,7 @@ std::vector<cl_float> h_optical_radii;
 std::vector<cl_int> h_deprecated;
 int ticks;
 int main(int argc, char** argv) {
-        int num_objects = 10;
+        const unsigned int num_objects = 10;
         const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
 
         std::vector<cl_float> h_wavelengths(num_objects*history_length);
@@ -115,7 +123,6 @@ int main(int argc, char** argv) {
         std::vector<cl_int> h_boolean_constants(7, false);
         std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, ((cl_uchar3) {0, 0, 0}));
 
-        num_objects = 10;
         ticks = 0;
 
         h_positions = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
@@ -340,6 +347,7 @@ int main(int argc, char** argv) {
 
             while ((input = fetch_input(INPUT_METHOD)) != -1) {
                 output_image(OUTPUT_METHOD, frame, &video_output);
+                update(num_objects);
             }
             return 0;
         }
@@ -390,7 +398,7 @@ cl_float3 scale(cl_float scalar, cl_float3 vec) {
     return (cl_float3) {scalar*vec.s[0], scalar*vec.s[1], scalar*vec.s[2]};
 }
 
-void update() {
+void update(int num_objects) {
     for (int i = 0; i < num_objects; i++) {
         cl_float3 new_position = h_positions[index_time_obj(ticks, i, num_objects)];
         cl_float3 new_velocity = h_velocities[index_time_obj(ticks, i, num_objects)];
@@ -460,5 +468,31 @@ void update() {
                 h_masses[index_time_obj(ticks, i, num_objects)] += h_masses[index_time_obj(ticks, j, num_objects)];
             }
         }
+    }
+}
+
+int worldline(int min_time, int max_time, int time, int object_index, cl_float3 object_position) {
+    int lower_bound = fmax(min_time, 0);
+    int upper_bound = fmin(max_time, TICKS_PER_SECOND * SECONDS_OF_MEMORY - 1);
+    int iterations = TICKS_PER_SECOND * SECONDS_OF_MEMORY / 2;
+    for (int i = 0; i < iterations; i++) {
+        if (upper_bound == lower_bound) {
+            return lower_bound;
+        }
+        int half_time = (lower_bound + upper_bound) / 2;
+        if (SPEED_OF_LIGHT * (half_time - time) > length(vec_minus(h_positions[index_time_obj(ticks, object_index, num_objects)], object_position))) {
+            upper_bound = half_time;
+        } else {
+            lower_bound = half_time;
+        }
+    }
+    return lower_bound;
+}
+
+cl_float factor(cl_float ratio) {
+    if (USE_ALTERNATE_FACTOR) {
+        return (1 - LIGHT_SLOWING_RATIO * ratio) * (1 - LIGHT_SLOWING_RATIO * ratio);
+    } else {
+        return (1 - ratio) / (1 + ratio) / (1 + ratio) / (1 + ratio);
     }
 }
