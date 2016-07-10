@@ -40,9 +40,12 @@
 #define O_FILE (2)
 
 #define WINDOW_NAME "REALS"
+#define INPUT_FILE_NAME "input.txt" 
 #define OUTPUT_FILE_NAME "test.avi"
 
 #define EXIT_CODE (81)
+
+ifstream in_file;
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
         if (output_method & O_WINDOW) {
@@ -57,6 +60,8 @@ void init_output(int output_method, cv::VideoWriter* video_output) {
                         true);
         }
 }
+uchar cur_com = 0;
+int cur_dur = 0;
 
 int fetch_input(int input_method) {
         if (input_method & I_KEY) {
@@ -69,8 +74,24 @@ int fetch_input(int input_method) {
                 }
                 return input;
         } else if (input_method & I_FILE) {
-                return (-1);
-                // TODO: Make this read a file.
+		if (cur_dur) {
+			cur_dur--;
+			return cur_com;
+		}
+	        string line;
+		in_file >> line;
+		if (!line) {
+			return -1;
+		}
+		if (line.length() == 0) {
+			return 0;
+		}
+		if (line.length() == 1) {
+			return line.at(0);
+		}
+		cur_com = line.at(0);
+		cur_dur = std::stoi(line.substr(1), NULL)-1;
+		return cur_com;
         } else {
                 return (-1);
         }
@@ -98,11 +119,20 @@ int main(int argc, char** argv) {
         std::vector<int> h_deprecated(num_objects);
 
         int input;
-        int INPUT_METHOD = I_KEY;
-        int OUTPUT_METHOD = O_WINDOW | O_FILE;
+        int INPUT_METHOD = I_FILE;
+        int OUTPUT_METHOD = O_FILE;
         if (INPUT_METHOD & I_KEY) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
+	if (INPUT_METHOD & I_FILE) {
+            in_file = ifstream(INPUT_FILE);
+	    if (!in_file.is_open()) {
+                INPUT_METHOD ^= I_FILE;
+	    }
+	}
+	while((input = fetch_input(INPUT_METHOD)) != -1) {
+		std::cout << input << std::endl;
+	}
 
         cv::VideoWriter video_output;
 
@@ -113,5 +143,8 @@ int main(int argc, char** argv) {
         while ((input = fetch_input(INPUT_METHOD)) != -1) {
                 output_image(OUTPUT_METHOD, frame, &video_output);
         }
+	if (in_file.is_open()) {
+            in_file.close();
+	}
         return(0);
 }
