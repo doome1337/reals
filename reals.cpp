@@ -40,8 +40,8 @@
 #define APPLY_ORBIT_DECAY (0)
 #define USE_ALTERNATE_FACTOR (0)
 
-#define WIDTH (320)
-#define HEIGHT (240)
+#define WIDTH (160)
+#define HEIGHT (120)
 #define PIX_SIZE (0.01)
 
 #define I_KEY (1)
@@ -517,7 +517,7 @@ void update() {
     }
     h_velocities[index_time_obj(ticks, 1, num_objects)] = vec_add(
         h_velocities[index_time_obj(ticks, 1, num_objects)],
-        (cl_float3) {(cl_float) (0.0001*cos(0.2*ticks)), 0.0, 0.0});
+        (cl_float3) {(cl_float) (0.0003*cos(0.2*ticks)),(cl_float) (0.0003*sin(0.2*ticks)), 0.0});
 }
 
 int worldline(int min_time, int max_time, int time, int object_index, cl_float3 object_position) {
