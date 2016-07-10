@@ -1,16 +1,18 @@
 // TODO LIST:
 // Make ray_time an int
-//
-#define PIX_SIZE (0.01)
+// Tick_index wrap in index_time_obj
+#define PIX_SIZE (0.005)
 #define GRAVITATIONAL_CONSTANT (0.0)
-#define GRAVITATIONAL_RATIO (0.0)
-#define INTENSITY_FACTOR (0.0)
-#define LIGHT_SLOWING_RATIO (0.0)
-#define MASSIVE_BOUND (0.0)
-#define SPEED_OF_LIGHT (0.0)
-#define VISIBLE_PARALLAX (0.0)
+#define GRAVITATIONAL_RATIO (4000.0)
+#define INTENSITY_FACTOR (1.0)
+#define LIGHT_SLOWING_RATIO (4.0)
+#define MASSIVE_BOUND (100000000.0)
+#define SPEED_OF_LIGHT (0.05)
+#define VISIBLE_PARALLAX (100.0)
 
-#define NUM_OBJECTS (10)
+#define NUM_OBJECTS (2)
+
+#pragma OPENCL EXTENSION cl_intel_printf : enable
 
 uchar3 ray_trace(
         // Histories
@@ -72,7 +74,7 @@ __kernel void reals (
         __global uchar3* colors) {
     int i = get_global_id(0);
     int j = get_global_id(1);
-    if (i < width && j < height) {
+    if (i < height && j < width) {
         const int APPLY_GR_RS = boolean_constants[0];
         const int APPLY_INTENSITY = boolean_constants[1];
         const int APPLY_LENSING = boolean_constants[2];
@@ -80,7 +82,7 @@ __kernel void reals (
         const int USE_ALTERNATE_FACTOR = boolean_constants[4];
         const int USE_INSTANT_GRAVITY = boolean_constants[5];
         const int USE_LONG_STEP = boolean_constants[6];
-        colors[j*width + i] = ray_trace(
+        colors[i*width + j] = ray_trace(
             // Histories
             positions,
             velocities,
@@ -106,11 +108,11 @@ __kernel void reals (
             orientations_r[index_time_obj(
                 end_tick,
                 0,
-                NUM_OBJECTS)] * (i-width/2) * PIX_SIZE +
+                NUM_OBJECTS)] * (i - height/2) * PIX_SIZE +
             orientations_u[index_time_obj(
                 end_tick,
                 0,
-                NUM_OBJECTS)] * (j-height/2) * PIX_SIZE,
+                NUM_OBJECTS)] * (j - width/2) * PIX_SIZE,
             // Constants for this frame
             cur_time,
             NUM_OBJECTS,
@@ -205,20 +207,32 @@ uchar3 ray_trace (
     float3 ray_position = start_point;
     float combined_ratio = 0.0;
 
-    for (int i = 0; i < num_objects; i++) {
+    for (int i = 1; i < num_objects; i++) {
         gravitational_radii[i] = GRAVITATIONAL_RATIO * schwarzschild_radius(masses[i]);
         relevant_radii[i] = max(gravitational_radii[i], optical_radii[i]);
         sizeable_objects[i] = 1;
         combined_ratio += (
-            schwarzschild_radius(masses[end_tick * num_objects + i]) /
-            distance(start_point, positions[end_tick * num_objects + i]));
+            schwarzschild_radius(masses[index_time_obj(end_tick, i, num_objects)]) /
+            distance(start_point, positions[index_time_obj(
+                end_tick,
+                i,
+                num_objects)]));
     }
 
-    float3 ray_velocity = SPEED_OF_LIGHT * combined_ratio * normalize(start_ray);
+    float3 ray_velocity = (
+        SPEED_OF_LIGHT *
+        factor(combined_ratio, USE_ALTERNATE_FACTOR) *
+        normalize(start_ray));
     while(num_sizeable > 0) {
         for (int i = 0; i < num_objects; i++) {
-            if (sizeable_objects[i] == 1 && (deprecated[i] || distance_traveled
-                > VISIBLE_PARALLAX * relevant_radii[i])) {
+            if (sizeable_objects[i] == 1 && (deprecated[i/*ndex_time_obj(
+                    time_index(
+                        ray_time,
+                        history_length,
+                        end_tick),
+                    i,
+                    num_objects)*/] || distance_traveled
+                >= VISIBLE_PARALLAX * relevant_radii[i])) {
                 sizeable_objects[i] = 0;
                 num_sizeable--;
             }
@@ -227,8 +241,13 @@ uchar3 ray_trace (
         int num_relevant = 0;
         float3 relative_positions[NUM_OBJECTS];
         for (int i = 0; i < num_objects; i++) {
-            relative_positions[i] = ray_position - positions[tick_index(ray_time,
-                history_length, end_tick)];
+            relative_positions[i] = ray_position - positions[index_time_obj(
+                tick_index(
+                    ray_time,
+                    history_length,
+                    end_tick),
+                i,
+                num_objects)];
         }
         float distance_squared[NUM_OBJECTS];
         for (int i = 0; i < num_objects; i++) {
@@ -236,17 +255,26 @@ uchar3 ray_trace (
                 relative_positions[i]);
         }
         for (int i = 0; i < num_objects; i++) {
-            if (sizeable_objects[i] == 1 && masses[tick_index(ray_time,
-                history_length, end_tick)] >
+            if (sizeable_objects[i] == 1 && masses[index_time_obj(
+                    tick_index(
+                        ray_time,
+                        history_length,
+                        end_tick),
+                    i,
+                    num_objects)] >
                 MASSIVE_BOUND && length(relative_positions[i]) <
-                gravitational_radii[tick_index(ray_time, history_length,
-                end_tick)]) {
+                gravitational_radii[index_time_obj(
+                    tick_index(
+                        ray_time,
+                        history_length,
+                        end_tick),
+                    i,
+                    num_objects)]) {
                 relevant_objects[i] = 1;
                 num_relevant++;
             }
         }
-
-        if (!APPLY_LENSING || num_relevant == 0) {
+        /*if (!APPLY_LENSING || num_relevant == 0) {
             float min_step = history_length;
             for (int i = 0; i < num_objects; i++) {
                 if (sizeable_objects[i] == 1) {
@@ -256,27 +284,37 @@ uchar3 ray_trace (
                     float linear_term = (
                         SPEED_OF_LIGHT * dot(relative_positions[i],
                         normalize(ray_velocity)) + top_speeds[i] *
-                        gravitational_radii[
-                            tick_index(ray_time, history_length, end_tick)]);
+                        gravitational_radii[index_time_obj(
+                            tick_index(ray_time, history_length, end_tick),
+                            i,
+                            num_objects)]);
                     min_step = round(min(USE_LONG_STEP ? (linear_term -
                         sqrt(linear_term * linear_term - quadratic_term *
                         (distance_squared[i] -
-                        gravitational_radii[tick_index(ray_time, history_length,
-                        end_tick)] * gravitational_radii[tick_index(ray_time,
-                        history_length, end_tick)]))) / quadratic_term : 0.5 *
+                        gravitational_radii[index_time_obj(
+                            tick_index(ray_time, history_length, end_tick),
+                            i,
+                            num_objects)] *
+                        gravitational_radii[index_time_obj(
+                            tick_index(ray_time, history_length, end_tick),
+                            i,
+                            num_objects)]))) / quadratic_term : 0.5 *
                         quadratic_term / linear_term, min_step));
                 }
                 ray_position += min_step * ray_velocity;
                 ray_time += min_step;
                 continue;
             }
-        }
+        }*/
 
         float3 gravitational_positions[NUM_OBJECTS];
         for (int i = 0; i < num_objects; i++) {
             gravitational_positions[i] = (
                 ray_position - positions[(USE_INSTANT_GRAVITY ?
-                    tick_index(ray_time, history_length, end_tick) :
+                    index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects) :
                     worldline(
                         ((int) floor(ray_time + (length(relative_positions[i]) /
                         (SPEED_OF_LIGHT + top_speeds[i])))),
@@ -295,7 +333,10 @@ uchar3 ray_trace (
             if (relevant_objects[i] == 1) {
                 acceleration1 += acceleration(gravitational_positions[i],
                     relative_velocities[i],
-                    masses[tick_index(ray_time, history_length, end_tick)]);
+                    masses[index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects)]);
             }
         }
         float3 velocity2 = ray_velocity + 0.5 * acceleration1;
@@ -303,8 +344,14 @@ uchar3 ray_trace (
             if (relevant_objects[i] == 1) {
                 acceleration2 += acceleration(gravitational_positions[i],
                     length(velocity2) * normalize(velocity2 -
-                    velocities[tick_index(ray_time, history_length, end_tick)]),
-                    masses[tick_index(ray_time, history_length, end_tick)]);
+                    velocities[index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects)]),
+                    masses[index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects)]);
             }
         }
         float3 velocity3 = ray_velocity + 0.5 * acceleration2;
@@ -312,8 +359,14 @@ uchar3 ray_trace (
             if (relevant_objects[i] == 1) {
                 acceleration3 += acceleration(gravitational_positions[i],
                     length(velocity3) * normalize(velocity3 -
-                    velocities[tick_index(ray_time, history_length, end_tick)]),
-                    masses[tick_index(ray_time, history_length, end_tick)]);
+                    velocities[index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects)]),
+                    masses[index_time_obj(
+                        tick_index(ray_time, history_length, end_tick),
+                        i,
+                        num_objects)]);
             }
         }
         float3 velocity4 = ray_velocity + acceleration3;
@@ -330,7 +383,10 @@ uchar3 ray_trace (
         float3 new_position = ray_position + 0.166667 * (ray_velocity + 2.0 *
             (velocity2 + velocity3) + velocity4);
         ray_time++;
-        if (ray_time > history_length - 1) {
+        if (ray_time == 120) {
+            return(uchar3)(100*length(ray_velocity),0,0);
+        }
+        if (ray_time > history_length) {
             return (uchar3) (0, 0, 0);
         }
         combined_ratio = 0.0;
@@ -338,13 +394,17 @@ uchar3 ray_trace (
             if (relevant_objects[i] == 1) {
                 combined_ratio += (
                     schwarzschild_radius(
-                        masses[tick_index(ray_time, history_length, end_tick)])
+                        masses[index_time_obj(
+                            tick_index(ray_time, history_length, end_tick),
+                            i,
+                            num_objects)])
                     / distance(
                         new_position,
                         positions[end_tick * num_objects + i]));
             }
         }
 
+        // ray_velocity = new_position - ray_position;
         ray_velocity = (
             SPEED_OF_LIGHT * factor(
                 combined_ratio,
@@ -353,22 +413,27 @@ uchar3 ray_trace (
                     acceleration1 +
                     2 * (acceleration2 + acceleration3) +
                     acceleration4)));
-
         for (int i = 0; i < num_objects; i++) {
-            if (relevant_objects[i] == 1) {
+            if (sizeable_objects[i]) {
                 if (is_sphere[i]) {
                     if (distance(
                             new_position,
-                            positions[tick_index(
-                                ray_time,
-                                history_length,
-                                end_tick)]) < (
-                            is_black_hole[i] ?
-                            schwarzschild_radius(
-                                masses[tick_index(
+                            positions[index_time_obj(
+                                tick_index(
                                     ray_time,
                                     history_length,
-                                    end_tick)]) :
+                                    end_tick),
+                                i,
+                                num_objects)]) < (
+                            is_black_hole[i] ?
+                            schwarzschild_radius(
+                                masses[index_time_obj(
+                                    tick_index(
+                                        ray_time,
+                                        history_length,
+                                        end_tick),
+                                    i,
+                                    num_objects)]) :
                             optical_radii[i])) {
                         return perceived_colour(
                             i,
@@ -407,8 +472,10 @@ uchar3 ray_trace (
                                 length(cross(u, v)) && signbit(dot(cross(u, w),
                                 cross(u, v))) == 0 && signbit(dot(cross(w, v),
                                 cross(u, v))) == 0) {
-                                return colours[tick_index(ray_time,
-                                history_length, end_tick)][j];
+                                return colours[index_time_obj(
+                                    tick_index(ray_time, history_length, end_tick),
+                                    i,
+                                    num_objects)][j];
                             }
                         }
                     }
@@ -417,7 +484,6 @@ uchar3 ray_trace (
         }
         distance_traveled += distance(new_position, ray_position);
         ray_position = new_position;
-        ray_velocity = new_position - ray_position;
     }
     return (uchar3) (0, 0, 0);
 }
@@ -439,7 +505,7 @@ float factor(float ratio, int USE_ALTERNATE_FACTOR) {
         return (1 - LIGHT_SLOWING_RATIO * ratio) * (1 - LIGHT_SLOWING_RATIO *
         ratio);
     } else {
-        return (1 - ratio) / (1 + ratio) / (1 + ratio) / (1 + ratio);
+        return (1 - ratio) / ((1 + ratio) * (1 + ratio) * (1 + ratio));
     }
 }
 
@@ -626,7 +692,6 @@ uchar3 perceived_colour(
                 num_objects)])));
 
     }
-
     return (uchar3) ((rgb.x == 0.0 ? 0 : min(round(255 * powr(rgb.x * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
         (rgb.y == 0.0 ? 0 : min(round(255 * powr(rgb.y * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
         (rgb.z == 0.0 ? 0 : min(round(255 * powr(rgb.z * INTENSITY_FACTOR * factor, 0.8)), 255.0)));

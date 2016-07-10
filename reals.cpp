@@ -36,6 +36,7 @@
 
 #define WINDOW_NAME "REALS"
 #define OUTPUT_FILE_NAME "test.avi"
+#define CONFIG_FILE "data.csv"
 #define EXIT_CODE (81)
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
@@ -92,16 +93,52 @@ int main(int argc, char** argv) {
         std::vector<cl_float> h_masses(num_objects*history_length);
         std::vector<cl_float> h_optical_radii(num_objects);
         std::vector<cl_float> h_top_speeds(num_objects);
-        std::vector<cl_float> h_wavelengths(num_objects);
-        std::vector<cl_int> h_deprecated(num_objects);
+        std::vector<cl_float> h_wavelengths(num_objects*history_length);
+        std::vector<cl_int> h_deprecated(num_objects*history_length);
         std::vector<cl_int> h_is_black_hole(num_objects);
         std::vector<cl_int> h_is_sphere(num_objects);
         std::vector<cl_int> h_boolean_constants(7, false);
-        std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, (cl_uchar3) {0, 0, 0});
+        std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, ((cl_uchar3) {0, 0, 0}));
+
+        /*std::string line;
+        std::ifstream myfile (CONFIG_FILE);
+        if (myfile.is_open()) {
+            myfile >> line;
+            myfile.close();
+        }*/
 
         float cur_time = 0.0;
         unsigned int start_tick = 0;
-        unsigned int end_tick = 0;
+        unsigned int end_tick = 100;
+
+        for (int i = 0; i < end_tick+10; i++) {
+            h_positions[2*i+0] = (cl_float3) {0.0, 0.0, 0.0};
+            h_positions[2*i+1] = (cl_float3) {3.0, 0.0, 0.0};
+            h_velocities[2*i+0] = (cl_float3) {0.0, 0.0, 0.0};
+            h_velocities[2*i+1] = (cl_float3) {0.0, 0.0, 0.0};
+            h_orientations_r[2*i+0] = (cl_float3) {0.0, -1.0, 0.0};
+            h_orientations_r[2*i+1] = (cl_float3) {1.0, 0.0, 0.0};
+            h_orientations_f[2*i+0] = (cl_float3) {1.0, 0.0, 0.0};
+            h_orientations_f[2*i+1] = (cl_float3) {0.0, 1.0, 0.0};
+            h_orientations_u[2*i+0] = (cl_float3) {0.0, 0.0, 1.0};
+            h_orientations_u[2*i+1] = (cl_float3) {0.0, 0.0, 1.0};
+            h_local_times[2*i+0] = 1.0;
+            h_local_times[2*i+1] = 1.0;
+            h_masses[2*i+0] = 0.0;
+            h_masses[2*i+1] = 100.0;
+            h_wavelengths[2*i+0] = 450.0;
+            h_wavelengths[2*i+1] = 500.0;
+            h_deprecated[2*i+0] = 0;
+            h_deprecated[2*i+1] = 0;
+        }
+        h_optical_radii[0] = 0.0;
+        h_optical_radii[1] = 0.5;
+        h_top_speeds[0] = 0.0;
+        h_top_speeds[1] = 0.0;
+        h_is_black_hole[0] = 0;
+        h_is_black_hole[1] = 0;
+        h_is_sphere[0] = 0;
+        h_is_sphere[1] = 1;
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
