@@ -115,3 +115,64 @@ int main(int argc, char** argv) {
         }
         return(0);
 }
+
+void update() {
+    for (int i = 0, i < num_objects; i++) {
+        std::cl_float3 new_position = positions[i][time];
+        std::cl_float3 new_velocity = velocities[i][time];
+        std::cl_float new_mass = masses[i][time];
+        std::cl_float new_time = times[i][time];
+        new_position += velocities[i][time];
+        std::cl_float combined_ratio = 0;
+        for (int j = 0; j < num_objects; j++) {
+            if (i == j) {
+                continue;
+            }
+            std::cl_float3 relative_position = positions[i][time] -
+                positions[j][time];
+            if (length(relative_position) >
+                GRAVITATIONAL_RATIO * schwarzschild_radius(masses[j][time])) {
+                continue;
+            }
+            std::cl_float wave_time = USE_INSTANT_GRAVITY ? time :
+                worldline(time - relative_position) / (SPEED_OF_LIGHT -
+                top_speeds[j]),
+                time - length(relative_position) / (SPEED_OF_LIGHT + top_speeds[j]),
+                time, j, positions[i][time]);
+            if (!USE_INSTANT_GRAVITY) {
+                relative_position = positions[j][wave_time] - positions[i][time];
+            }
+            combined_ratio += schwarzschild_radius(masses[j][wave_time]) /
+                length(relative_position);
+            if (APPLY_ORBIT_DECAY && masses[i][time] > MASSIVE_BOUND &&
+                masses[j][wave_time] > MASSIVE_BOUND) {
+                new_position += 0.5 * relative_position * (1 -
+                    pow(DECAY_PER_ORBIT, DECAY_COEFFICIENT *
+                    sqrt(masses[j][wave_time] / length(relative_position) /
+                    length(relative_position) / length(relative_position))));
+            }
+            new_velocity += GRAVITATIONAL_CONSTANT * masses[j][wave_time] *
+                relative_position / length(relative_position) /
+                length(relative_position) / length(relative_position);
+        }
+        new_time += factor(combined_ratio) *
+            sqrt(1 - length(velocities[i][time]) *
+            length(velocities[i][time]) / SPEED_OF_LIGHT / SPEED_OF_LIGHT);
+    }
+    time++;
+    for (int i = 0; i < num_objects; i++) {
+        for (int j = 0; j < num_objects; j++) {
+            if (i == j || masses[i][time] < masses[j][time]) {
+                continue;
+            }
+            std::cl_float3 relative_position =
+                positions[j][time] - positions[i][time];
+            if (length(relative_position) < optical_radii[i]) {
+                deprecated[j] = true;
+                positions[i][time] += relative_position * masses[j][time] /
+                    (masses[i][time] + masses[j][time]);
+                masses[i][time] += masses[j][time];
+            }
+        }
+    }
+}
