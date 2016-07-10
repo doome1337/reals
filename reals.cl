@@ -7,8 +7,8 @@
 #define INTENSITY_FACTOR (1.0)
 #define LIGHT_SLOWING_RATIO (4.0)
 #define MASSIVE_BOUND (100000000.0)
-#define SPEED_OF_LIGHT (0.05)
-#define VISIBLE_PARALLAX (100.0)
+#define SPEED_OF_LIGHT (0.2)
+#define VISIBLE_PARALLAX (1000.0)
 
 #define NUM_OBJECTS (2)
 
@@ -75,10 +75,10 @@ __kernel void reals (
     int i = get_global_id(0);
     int j = get_global_id(1);
     if (i < height && j < width) {
-        const int APPLY_GR_RS = boolean_constants[0];
-        const int APPLY_INTENSITY = boolean_constants[1];
-        const int APPLY_LENSING = boolean_constants[2];
-        const int APPLY_SR_RS = boolean_constants[3];
+        const int APPLY_GR_RS = 0;
+        const int APPLY_INTENSITY = 0;
+        const int APPLY_LENSING = 0;
+        const int APPLY_SR_RS = 1;
         const int USE_ALTERNATE_FACTOR = boolean_constants[4];
         const int USE_INSTANT_GRAVITY = boolean_constants[5];
         const int USE_LONG_STEP = boolean_constants[6];
@@ -414,14 +414,14 @@ uchar3 ray_trace (
             if (sizeable_objects[i]) {
                 if (is_sphere[i]) {
                     if (distance(
-                            new_position,(float3)(3,0,0)
-                           /* positions[index_time_obj(
+                            new_position,
+                            positions[index_time_obj(
                                 tick_index(
                                     ray_time,
                                     history_length,
                                     end_tick),
                                 i,
-                                num_objects)]*/) < (
+                                num_objects)]) < (
                             is_black_hole[i] ?
                             schwarzschild_radius(
                                 masses[index_time_obj(
@@ -582,27 +582,40 @@ uchar3 perceived_colour(
         __global float3* positions,
         __global float3* velocities) {
     if (APPLY_SR_RS) {
-        float outgoing_speed = dot(
+        float vel_prod = length(initial_velocity) * length(velocities[index_time_obj(
+            tick_index(
+                time,
+                history_length,
+                end_tick),
+            0,
+            num_objects)]);
+        float outgoing_speed = vel_prod != 0.0 ? dot(
             normalize(initial_velocity),
-            normalize(velocities[index_time_obj(
+            velocities[index_time_obj(
                 tick_index(
                     time,
                     history_length,
                     end_tick),
                 0,
-                num_objects)]));
-
-        float incoming_speed = dot(
+                num_objects)]) : 0.0;
+        vel_prod = length(velocity_hit) * length(velocities[index_time_obj(
+            tick_index(
+                time_hit,
+                history_length,
+                end_tick),
+            object_index,
+            num_objects)]);
+        float incoming_speed = vel_prod != 0.0 ? dot(
             normalize(velocity_hit),
-            normalize(velocities[index_time_obj(
+            velocities[index_time_obj(
                 tick_index(
                     time_hit,
                     history_length,
                     end_tick),
                 object_index,
-                num_objects)]));
+                num_objects)]) : 0.0;
 
-        float ratio = (outgoing_speed + incoming_speed) / (1 -
+        float ratio = (outgoing_speed + incoming_speed) / (SPEED_OF_LIGHT*SPEED_OF_LIGHT -
             fabs(outgoing_speed * incoming_speed));
         wavelength *= sqrt((1 + ratio) / (1 - ratio));
     }
