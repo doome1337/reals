@@ -22,17 +22,22 @@
 #define DEVICE CL_DEVICE_TYPE_DEFAULT
 #endif
 
-#define TICKS_PER_SECOND (60)
+#define TICKS_PER_SECOND (1)
 #define SECONDS_OF_MEMORY (150)
 
-#define MAX_INTENSITY_AT_REST (255)
-#define SPEED_OF_LIGHT (299792458.0)
-// ^ Make this a command line argument.
-#define VISIBLE_PARALLAX (512)
 #define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
+#define GRAVITATIONAL_RATIO (40.0)
+#define INTENSITY_FACTOR (1.0)
+#define LIGHT_SLOWING_RATIO (4.0)
+#define MASSIVE_BOUND (1000000000.0)
+#define SPEED_OF_LIGHT (299792458.0)
+#define VISIBLE_PARALLAX (512.0)
+// ^ Make these command line arguments.
+
 
 #define WIDTH (160)
 #define HEIGHT (120)
+#define PIX_SIZE (0.01)
 
 #define I_KEY (1)
 #define I_FILE (2)
@@ -41,7 +46,6 @@
 
 #define WINDOW_NAME "REALS"
 #define OUTPUT_FILE_NAME "test.avi"
-
 #define EXIT_CODE (81)
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
@@ -87,8 +91,8 @@ void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_outpu
 
 int main(int argc, char** argv) {
         int num_objects = 10;
-
         const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
+
         std::vector<cl_float3> h_positions(num_objects*history_length);
         std::vector<cl_float3> h_velocities(num_objects*history_length);
         std::vector<cl_float3> h_orientations_r(num_objects*history_length);
@@ -97,9 +101,24 @@ int main(int argc, char** argv) {
         std::vector<cl_float> h_local_times(num_objects*history_length);
         std::vector<cl_float> h_masses(num_objects*history_length);
         std::vector<cl_float> h_optical_radii(num_objects);
+        std::vector<cl_float> h_top_speeds(num_objects);
+        std::vector<cl_float> h_wavelengths(num_objects);
         std::vector<cl_int> h_deprecated(num_objects);
+        std::vector<cl_int> h_is_black_hole(num_objects);
+        std::vector<cl_int> h_is_sphere(num_objects);
+
+        float cur_time = 0.0;
         int start_tick = 0;
         int end_tick = 0;
+
+        std::vector<cl_float> physics_constants;
+        physics_constants.push_back(GRAVITATIONAL_CONSTANT);
+        physics_constants.push_back(GRAVITATIONAL_RATIO);
+        physics_constants.push_back(INTENSITY_FACTOR);
+        physics_constants.push_back(LIGHT_SLOWING_RATIO);
+        physics_constants.push_back(MASSIVE_BOUND);
+        physics_constants.push_back(SPEED_OF_LIGHT);
+        physics_constants.push_back(VISIBLE_PARALLAX);
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
@@ -109,11 +128,15 @@ int main(int argc, char** argv) {
         cl::Buffer d_local_times;
         cl::Buffer d_masses;
         cl::Buffer d_optical_radii;
+        cl::Buffer d_top_speeds;
+        cl::Buffer d_wavelengths;
         cl::Buffer d_deprecated;
+        cl::Buffer d_is_black_hole;
+        cl::Buffer d_is_sphere;
 
         int input;
-        int INPUT_METHOD = I_KEY;
-        int OUTPUT_METHOD = O_WINDOW | O_FILE;
+        int INPUT_METHOD = I_FILE;
+        int OUTPUT_METHOD = O_FILE;
         if (INPUT_METHOD & I_KEY) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
@@ -143,10 +166,11 @@ int main(int argc, char** argv) {
                 cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer,
                 cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer,
                 float,
-                unsigned int, unsigned int, unsigned int, unsigned int,
-                cl::Buffer, cl::Buffer,
                 unsigned int, unsigned int,
-                float>(program, "reals");
+                float,
+                cl::Buffer, cl::Buffer,
+                unsigned int, unsigned int, unsigned int, unsigned int
+                >(program, "reals");
 
             /*d_colors  = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(unsigned char)*3*WIDTH*HEIGHT);
 
