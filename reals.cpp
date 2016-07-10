@@ -25,16 +25,6 @@
 #define TICKS_PER_SECOND (1)
 #define SECONDS_OF_MEMORY (150)
 
-#define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
-#define GRAVITATIONAL_RATIO (40.0)
-#define INTENSITY_FACTOR (1.0)
-#define LIGHT_SLOWING_RATIO (4.0)
-#define MASSIVE_BOUND (1000000000.0)
-#define SPEED_OF_LIGHT (299792458.0)
-#define VISIBLE_PARALLAX (512.0)
-// ^ Make these command line arguments.
-
-
 #define WIDTH (160)
 #define HEIGHT (120)
 #define PIX_SIZE (0.01)
@@ -111,14 +101,7 @@ int main(int argc, char** argv) {
         int start_tick = 0;
         int end_tick = 0;
 
-        std::vector<cl_float> physics_constants;
-        physics_constants.push_back(GRAVITATIONAL_CONSTANT);
-        physics_constants.push_back(GRAVITATIONAL_RATIO);
-        physics_constants.push_back(INTENSITY_FACTOR);
-        physics_constants.push_back(LIGHT_SLOWING_RATIO);
-        physics_constants.push_back(MASSIVE_BOUND);
-        physics_constants.push_back(SPEED_OF_LIGHT);
-        physics_constants.push_back(VISIBLE_PARALLAX);
+        std::vector<cl_int> h_boolean_constants(7, false);
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
@@ -133,6 +116,7 @@ int main(int argc, char** argv) {
         cl::Buffer d_deprecated;
         cl::Buffer d_is_black_hole;
         cl::Buffer d_is_sphere;
+        cl::Buffer d_boolean_constants;
 
         int input;
         int INPUT_METHOD = I_FILE;
@@ -167,8 +151,7 @@ int main(int argc, char** argv) {
                 cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer,
                 float,
                 unsigned int, unsigned int,
-                float,
-                cl::Buffer, cl::Buffer,
+                cl::Buffer,
                 unsigned int, unsigned int, unsigned int, unsigned int
                 >(program, "reals");
 
