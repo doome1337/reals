@@ -25,6 +25,19 @@
 #define TICKS_PER_SECOND (1)
 #define SECONDS_OF_MEMORY (150)
 
+#define MAX_INTENSITY_AT_REST (255)
+#define SPEED_OF_LIGHT (299792458.0)
+// ^ Make this a command line argument.
+#define VISIBLE_PARALLAX (512)
+#define GRAVITATIONAL_CONSTANT (0.0000000000000667408)
+#define GRAVITATIONAL_RATIO (40.0)
+#define MASSIVE_BOUND (1000000000.0)
+#define DECAY_PER_ORBIT (0.95)
+#define DECAY_COEFFICIENT (0.2)
+
+#define USE_INSTANT_GRAVITY (0)
+#define APPLY_ORBIT_DECAY (0)
+
 #define WIDTH (160)
 #define HEIGHT (120)
 #define PIX_SIZE (0.01)
@@ -80,25 +93,41 @@ void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_outpu
         }
 }
 
+int num_objects;
+std::vector<cl_float3> h_positions;
+std::vector<cl_float3> h_velocities;
+std::vector<cl_float3> h_orientations_r;
+std::vector<cl_float3> h_orientations_f;
+std::vector<cl_float3> h_orientations_u;
+std::vector<cl_float> h_local_times;
+std::vector<cl_float> h_masses;
+std::vector<cl_float> h_top_speeds;
+std::vector<cl_float> h_optical_radii;
+std::vector<cl_int> h_deprecated;
+int ticks;
 int main(int argc, char** argv) {
         int num_objects = 10;
         const unsigned int history_length = TICKS_PER_SECOND * SECONDS_OF_MEMORY;
 
-        std::vector<cl_float3> h_positions(num_objects*history_length);
-        std::vector<cl_float3> h_velocities(num_objects*history_length);
-        std::vector<cl_float3> h_orientations_r(num_objects*history_length);
-        std::vector<cl_float3> h_orientations_f(num_objects*history_length);
-        std::vector<cl_float3> h_orientations_u(num_objects*history_length);
-        std::vector<cl_float> h_local_times(num_objects*history_length);
-        std::vector<cl_float> h_masses(num_objects*history_length);
-        std::vector<cl_float> h_optical_radii(num_objects);
-        std::vector<cl_float> h_top_speeds(num_objects);
         std::vector<cl_float> h_wavelengths(num_objects*history_length);
-        std::vector<cl_int> h_deprecated(num_objects*history_length);
         std::vector<cl_int> h_is_black_hole(num_objects);
         std::vector<cl_int> h_is_sphere(num_objects);
         std::vector<cl_int> h_boolean_constants(7, false);
         std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, ((cl_uchar3) {0, 0, 0}));
+
+        num_objects = 10;
+        ticks = 0;
+
+        h_positions = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_velocities = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_orientations_r = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_orientations_f = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_orientations_u = std::vector<cl_float3>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_local_times = std::vector<cl_float>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_masses = std::vector<cl_float>(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        h_top_speeds = std::vector<cl_float>(num_objects);
+        h_optical_radii = std::vector<cl_float>(num_objects);
+        h_deprecated = std::vector<cl_int>(num_objects);
 
         /*std::string line;
         std::ifstream myfile (CONFIG_FILE);
@@ -327,62 +356,108 @@ int main(int argc, char** argv) {
         return(0);
 }
 
+int index_time_obj(int tick, int object, int num_objects) {
+    return tick*num_objects + object;
+}
+
+cl_float3 vec_add(cl_float3 vec1, cl_float3 vec2) {
+    return (cl_float3) {
+        vec1.s[0] + vec2.s[0],
+        vec1.s[1] + vec2.s[1],
+        vec1.s[2] + vec2.s[2]};
+}
+
+cl_float3 vec_minus(cl_float3 vec1, cl_float3 vec2) {
+    return (cl_float3) {
+        vec1.s[0] - vec2.s[0],
+        vec1.s[1] - vec2.s[1],
+        vec1.s[2] - vec2.s[2]};
+}
+
+cl_float dot(cl_float3 vec1, cl_float3 vec2) {
+    return (vec1.s[0]*vec2.s[0] + vec1.s[1]*vec2.s[1] + vec1.s[2]*vec2.s[2]);
+}
+
+cl_float length(cl_float3 vec) {
+    return sqrt(dot(vec, vec));
+}
+
+cl_float schwarzschild_radius(cl_float mass) {
+    return 2 * mass * GRAVITATIONAL_CONSTANT / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
+}
+
+cl_float3 scale(cl_float scalar, cl_float3 vec) {
+    return (cl_float3) {scalar*vec.s[0], scalar*vec.s[1], scalar*vec.s[2]};
+}
+
 void update() {
-    for (int i = 0, i < num_objects; i++) {
-        std::cl_float3 new_position = positions[i][time];
-        std::cl_float3 new_velocity = velocities[i][time];
-        std::cl_float new_mass = masses[i][time];
-        std::cl_float new_time = times[i][time];
-        new_position += velocities[i][time];
-        std::cl_float combined_ratio = 0;
+    for (int i = 0; i < num_objects; i++) {
+        cl_float3 new_position = h_positions[index_time_obj(ticks, i, num_objects)];
+        cl_float3 new_velocity = h_velocities[index_time_obj(ticks, i, num_objects)];
+        cl_float new_mass = h_masses[index_time_obj(ticks, i, num_objects)];
+        cl_float new_times = h_local_times[index_time_obj(ticks, i, num_objects)];
+        new_position = vec_add(new_position, h_velocities[index_time_obj(ticks, i, num_objects)]);
+        cl_float combined_ratio = 0;
         for (int j = 0; j < num_objects; j++) {
             if (i == j) {
                 continue;
             }
-            std::cl_float3 relative_position = positions[i][time] -
-                positions[j][time];
+            cl_float3 relative_position = vec_minus(h_positions[index_time_obj(ticks, i, num_objects)],
+                h_positions[index_time_obj(ticks, j, num_objects)]);
             if (length(relative_position) >
-                GRAVITATIONAL_RATIO * schwarzschild_radius(masses[j][time])) {
+                GRAVITATIONAL_RATIO * schwarzschild_radius(h_masses[index_time_obj(ticks, j, num_objects)])) {
                 continue;
             }
-            std::cl_float wave_time = USE_INSTANT_GRAVITY ? time :
-                worldline(time - relative_position) / (SPEED_OF_LIGHT -
-                top_speeds[j]),
-                time - length(relative_position) / (SPEED_OF_LIGHT + top_speeds[j]),
-                time, j, positions[i][time]);
+            cl_float wave_ticks = USE_INSTANT_GRAVITY ? ticks :
+                worldline(
+                    ticks - length(relative_position) / (SPEED_OF_LIGHT - h_top_speeds[j]),
+                    ticks - length(relative_position) / (SPEED_OF_LIGHT + h_top_speeds[j]),
+                    ticks, j, h_positions[index_time_obj(ticks, i, num_objects)]);
             if (!USE_INSTANT_GRAVITY) {
-                relative_position = positions[j][wave_time] - positions[i][time];
+                relative_position = vec_minus(
+                    h_positions[index_time_obj(ticks, i, num_objects)],
+                    h_positions[index_time_obj(ticks, j, num_objects)]);
             }
-            combined_ratio += schwarzschild_radius(masses[j][wave_time]) /
+            combined_ratio += schwarzschild_radius(h_masses[index_time_obj(wave_ticks, j, num_objects)]) /
                 length(relative_position);
-            if (APPLY_ORBIT_DECAY && masses[i][time] > MASSIVE_BOUND &&
-                masses[j][wave_time] > MASSIVE_BOUND) {
-                new_position += 0.5 * relative_position * (1 -
-                    pow(DECAY_PER_ORBIT, DECAY_COEFFICIENT *
-                    sqrt(masses[j][wave_time] / length(relative_position) /
-                    length(relative_position) / length(relative_position))));
+            if (APPLY_ORBIT_DECAY && h_masses[index_time_obj(ticks, i, num_objects)] > MASSIVE_BOUND &&
+                h_masses[index_time_obj(wave_ticks, j, num_objects)] > MASSIVE_BOUND) {
+                new_position = vec_add(
+                    new_position,
+                    scale(
+                        0.5 * (1 - pow(DECAY_PER_ORBIT, DECAY_COEFFICIENT *
+                    sqrt(h_masses[index_time_obj(wave_ticks, j, num_objects)] / length(relative_position) /
+                    length(relative_position) / length(relative_position)))),
+                        relative_position));
             }
-            new_velocity += GRAVITATIONAL_CONSTANT * masses[j][wave_time] *
-                relative_position / length(relative_position) /
-                length(relative_position) / length(relative_position);
+            new_velocity = vec_add(
+                new_velocity,
+                scale(
+                    GRAVITATIONAL_CONSTANT * h_masses[index_time_obj(wave_ticks, j, num_objects)]
+                    / dot(relative_position, relative_position) / length(relative_position),
+                    relative_position));
         }
-        new_time += factor(combined_ratio) *
-            sqrt(1 - length(velocities[i][time]) *
-            length(velocities[i][time]) / SPEED_OF_LIGHT / SPEED_OF_LIGHT);
+        new_times += factor(combined_ratio) *
+            sqrt(1 - length(h_velocities[index_time_obj(ticks, i, num_objects)]) *
+            length(h_velocities[index_time_obj(ticks, i, num_objects)]) / SPEED_OF_LIGHT / SPEED_OF_LIGHT);
     }
-    time++;
+    ticks++;
     for (int i = 0; i < num_objects; i++) {
         for (int j = 0; j < num_objects; j++) {
-            if (i == j || masses[i][time] < masses[j][time]) {
+            if (i == j || h_masses[index_time_obj(ticks, i, num_objects)] < h_masses[index_time_obj(ticks, j, num_objects)]) {
                 continue;
             }
-            std::cl_float3 relative_position =
-                positions[j][time] - positions[i][time];
-            if (length(relative_position) < optical_radii[i]) {
-                deprecated[j] = true;
-                positions[i][time] += relative_position * masses[j][time] /
-                    (masses[i][time] + masses[j][time]);
-                masses[i][time] += masses[j][time];
+            cl_float3 relative_position = vec_minus(
+                h_positions[index_time_obj(ticks, i, num_objects)],
+                h_positions[index_time_obj(ticks, j, num_objects)]);
+            if (length(relative_position) < h_optical_radii[i]) {
+                h_deprecated[j] = true;
+                h_positions[index_time_obj(ticks, i, num_objects)] = vec_add(
+                    h_positions[index_time_obj(ticks, i, num_objects)],
+                    scale(h_masses[index_time_obj(ticks, j, num_objects)] /
+                    (h_masses[index_time_obj(ticks, i, num_objects)] + h_masses[index_time_obj(ticks, j, num_objects)]),
+                    relative_position));
+                h_masses[index_time_obj(ticks, i, num_objects)] += h_masses[index_time_obj(ticks, j, num_objects)];
             }
         }
     }
