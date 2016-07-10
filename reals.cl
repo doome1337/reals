@@ -413,15 +413,15 @@ uchar3 ray_trace (
         for (int i = 0; i < num_objects; i++) {
             if (sizeable_objects[i]) {
                 if (is_sphere[i]) {
-                    if (distance(
-                            new_position,(float3)(3,0,0)
-                           /* positions[index_time_obj(
+                    if (/*distance(
+                            new_position,
+                            positions[index_time_obj(
                                 tick_index(
                                     ray_time,
                                     history_length,
                                     end_tick),
                                 i,
-                                num_objects)]*/) < (
+                                num_objects)])*/sqrt(dot(positions[index_time_obj(tick_index(ray_time, history_length, end_tick), i, num_objects)] - ray_position, positions[index_time_obj(tick_index(ray_time, history_length, end_tick), i, num_objects)] - ray_position) - dot(positions[index_time_obj(tick_index(ray_time, history_length, end_tick), i, num_objects)] - ray_position, new_position - ray_position) * dot(positions[index_time_obj(tick_index(ray_time, history_length, end_tick), i, num_objects)] - ray_position, new_position - ray_position) / dot(new_position - ray_position, new_position - ray_position)) < (
                             is_black_hole[i] ?
                             schwarzschild_radius(
                                 masses[index_time_obj(
