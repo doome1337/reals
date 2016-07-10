@@ -45,7 +45,7 @@
 
 #define EXIT_CODE (81)
 
-ifstream in_file;
+std::ifstream in_file;
 
 void init_output(int output_method, cv::VideoWriter* video_output) {
         if (output_method & O_WINDOW) {
@@ -81,7 +81,7 @@ int fetch_input(int input_method) {
 		if (!in_file) {
 			return -1;
 		}
-	        string line;
+        std::string line;
 		in_file >> line;
 		if (line.length() == 0) {
 			return 0;
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
 	if (INPUT_METHOD & I_FILE) {
-            in_file = ifstream(INPUT_FILE);
+            in_file = std::ifstream(INPUT_FILE_NAME);
 	    if (!in_file.is_open()) {
                 INPUT_METHOD ^= I_FILE;
 	    }
