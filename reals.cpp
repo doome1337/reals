@@ -96,12 +96,11 @@ int main(int argc, char** argv) {
         std::vector<cl_int> h_deprecated(num_objects);
         std::vector<cl_int> h_is_black_hole(num_objects);
         std::vector<cl_int> h_is_sphere(num_objects);
+        std::vector<cl_int> h_boolean_constants(7, false);
 
         float cur_time = 0.0;
-        int start_tick = 0;
-        int end_tick = 0;
-
-        std::vector<cl_int> h_boolean_constants(7, false);
+        unsigned int start_tick = 0;
+        unsigned int end_tick = 0;
 
         cl::Buffer d_positions;
         cl::Buffer d_velocities;
@@ -119,8 +118,8 @@ int main(int argc, char** argv) {
         cl::Buffer d_boolean_constants;
 
         int input;
-        int INPUT_METHOD = I_FILE;
-        int OUTPUT_METHOD = O_FILE;
+        int INPUT_METHOD = I_KEY;
+        int OUTPUT_METHOD = O_WINDOW;
         if (INPUT_METHOD & I_KEY) {
                 OUTPUT_METHOD |= O_WINDOW;
         }
@@ -131,7 +130,7 @@ int main(int argc, char** argv) {
 
         cv::Mat frame(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,0,0));
 
-        try 
+        try
         {
             // Create a context
             cl::Context context(DEVICE);
@@ -152,25 +151,107 @@ int main(int argc, char** argv) {
                 float,
                 unsigned int, unsigned int,
                 cl::Buffer,
-                unsigned int, unsigned int, unsigned int, unsigned int
+                unsigned int, unsigned int, unsigned int
                 >(program, "reals");
 
-            /*d_colors  = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(unsigned char)*3*WIDTH*HEIGHT);
+            d_positions = cl::Buffer(
+                context,
+                begin(h_positions),
+                end(h_positions),
+                true);
+            d_velocities = cl::Buffer(
+                context,
+                begin(h_velocities),
+                end(h_velocities),
+                true);
+            d_orientations_r = cl::Buffer(
+                context,
+                begin(h_orientations_r),
+                end(h_orientations_r),
+                true);
+            d_orientations_f = cl::Buffer(
+                context,
+                begin(h_orientations_f),
+                end(h_orientations_f),
+                true);
+            d_orientations_u = cl::Buffer(
+                context,
+                begin(h_orientations_u),
+                end(h_orientations_u),
+                true);
+            d_local_times = cl::Buffer(
+                context,
+                begin(h_local_times),
+                end(h_local_times),
+                true);
+            d_masses = cl::Buffer(
+                context,
+                begin(h_masses),
+                end(h_masses),
+                true);
+            d_optical_radii = cl::Buffer(
+                context,
+                begin(h_optical_radii),
+                end(h_optical_radii),
+                true);
+            d_top_speeds = cl::Buffer(
+                context,
+                begin(h_top_speeds),
+                end(h_top_speeds),
+                true);
+            d_wavelengths = cl::Buffer(
+                context,
+                begin(h_wavelengths),
+                end(h_wavelengths),
+                true);
+            d_deprecated = cl::Buffer(
+                context,
+                begin(h_deprecated),
+                end(h_deprecated),
+                true);
+            d_is_black_hole = cl::Buffer(
+                context,
+                begin(h_is_black_hole),
+                end(h_is_black_hole),
+                true);
+            d_is_sphere = cl::Buffer(
+                context,
+                begin(h_is_sphere),
+                end(h_is_sphere),
+                true);
+            d_boolean_constants = cl::Buffer(
+                context,
+                begin(h_boolean_constants),
+                end(h_boolean_constants),
+                true);
 
-            sim(
+            reals(
                     cl::EnqueueArgs(
                         queue,
-                        cl::NDRange(HEIGHT, WIDTH)), 
-                    d_colors,
-                    HEIGHT,
+                        cl::NDRange(HEIGHT, WIDTH)),
+                    d_positions,
+                    d_velocities,
+                    d_orientations_r,
+                    d_orientations_f,
+                    d_orientations_u,
+                    d_local_times,
+                    d_masses,
+                    d_optical_radii,
+                    d_top_speeds,
+                    d_wavelengths,
+                    d_deprecated,
+                    d_is_black_hole,
+                    d_is_sphere,
+                    cur_time,
+                    start_tick,
+                    end_tick,
+                    d_boolean_constants,
+                    history_length,
                     WIDTH,
-                    DISTANCE,
-                    SCREEN_DIST2,
-                    PIX_HEIGHT,
-                    PIX_WIDTH);
+                    HEIGHT);
 
             queue.finish();
-
+/*
             cl::copy(queue, d_colors, begin(h_colors), end(h_colors));*/
 
             while ((input = fetch_input(INPUT_METHOD)) != -1) {
@@ -180,7 +261,7 @@ int main(int argc, char** argv) {
         }
         catch (cl::Error err) {
             std::cout << "Exception\n";
-            std::cerr 
+            std::cerr
                 << "ERROR: "
                 << err.what()
                 << "("

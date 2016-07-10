@@ -66,7 +66,6 @@ __kernel void reals (
         const unsigned int end_tick,
         // Constants for all frames
         __global int* boolean_constants,
-        const unsigned int num_objects,
         const unsigned int history_length,
         const unsigned int width,
         const unsigned int height) {
@@ -98,22 +97,22 @@ __kernel void reals (
             positions[index_time_obj(
                 end_tick,
                 0,
-                num_objects)],
+                NUM_OBJECTS)],
             orientations_f[index_time_obj(
                 end_tick,
                 0,
-                num_objects)] +
+                NUM_OBJECTS)] +
             orientations_r[index_time_obj(
                 end_tick,
                 0,
-                num_objects)] * (i-width/2) * PIX_SIZE +
+                NUM_OBJECTS)] * (i-width/2) * PIX_SIZE +
             orientations_u[index_time_obj(
                 end_tick,
                 0,
-                num_objects)] * (j-height/2) * PIX_SIZE,
+                NUM_OBJECTS)] * (j-height/2) * PIX_SIZE,
             // Constants for this frame
             cur_time,
-            num_objects,
+            NUM_OBJECTS,
             history_length,
             start_tick,
             end_tick,
