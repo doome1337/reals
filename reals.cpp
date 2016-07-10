@@ -78,11 +78,11 @@ int fetch_input(int input_method) {
 			cur_dur--;
 			return cur_com;
 		}
-	        string line;
-		in_file >> line;
-		if (!line) {
+		if (!in_file) {
 			return -1;
 		}
+	        string line;
+		in_file >> line;
 		if (line.length() == 0) {
 			return 0;
 		}
