@@ -109,14 +109,14 @@ void output_image(int output_method, cv::Mat frame, cv::VideoWriter* video_outpu
 int main(int argc, char** argv) {
         int num_objects = 10;
 
-        std::vector<float> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
-        std::vector<float> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
-        std::vector<float> h_orientation_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
-        std::vector<float> h_orientation_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
-        std::vector<float> h_orientation_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY*3);
-        std::vector<float> h_local_time(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
-        std::vector<int> h_deprecated(num_objects);
+        std::vector<cl_float3> h_positions(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_velocities(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientation_r(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientation_f(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float3> h_orientation_u(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float> h_local_time(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_float> h_masses(num_objects*TICKS_PER_SECOND*SECONDS_OF_MEMORY);
+        std::vector<cl_int> h_deprecated(num_objects);
 
         int input;
         int INPUT_METHOD = I_FILE;

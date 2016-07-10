@@ -1,0 +1,12 @@
+W = tilt up
+S = tilt down
+A = turn left
+D = turn right
+Q = roll left
+E = roll right
+O = accelerate (forwards)
+M = decelerate (accelerate backwards)
+
+I_KEY ONLY!
+-----------
+<key>n means hold <key> for n frames.
