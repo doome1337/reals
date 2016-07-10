@@ -1,6 +1,45 @@
 // TODO LIST:
 // Make ray_time an int
 //
+uchar3 ray_trace(
+        // Histories
+        __global float3* positions,
+        __global float3* velocities,
+        __global float3* orientations_r,
+        __global float3* orientations_f,
+        __global float3* orientations_u,
+        __global float* masses,
+        __global float* optical_radii,
+        // Values
+        __global float* top_speeds,
+        __global float* wavelengths,
+        __global int* is_black_hole,
+        __global int* is_sphere,
+        __global int* deprecated,
+        float3 start_point,
+        float3 start_ray,
+        // Constants for this frame
+        float cur_time,
+        int num_objects,
+        int history_length,
+        int start_tick,
+        int end_tick,
+        // Constants for all frames
+        float GRAVITATIONAL_CONSTANT,
+        float GRAVITATIONAL_RATIO,
+        float INTENSITY_FACTOR,
+        float LIGHT_SLOWING_RATIO,
+        float MASSIVE_BOUND,
+        float SPEED_OF_LIGHT,
+        float VISIBLE_PARALLAX,
+        int APPLY_GR_RS,
+        int APPLY_INTENSITY,
+        int APPLY_LENSING,
+        int APPLY_SR_RS,
+        int USE_ALTERNATE_FACTOR,
+        int USE_INSTANT_GRAVITY,
+        int USE_LONG_STEP);
+
 __kernel void reals (
         // Histories
         __global float3* positions,
@@ -18,35 +57,35 @@ __kernel void reals (
         __global int* is_black_hole,
         __global int* is_sphere,
         // Constants for this frame
-        const float cur_time,
-        const unsigned int num_objects,
-        const unsigned int history_length,
-        const unsigned int start_tick,
-        const unsigned int end_tick,
+        float cur_time,
+        unsigned int start_tick,
+        unsigned int end_tick,
         // Constants for all frames
-        const float pix_size,
+        float PIX_SIZE,
         __global float* physics_constants,
         __global int* boolean_constants,
-        const unsigned int width,
-        const unsigned int height) {
+        const unsigned int num_objects,
+        unsigned int history_length,
+        unsigned int width,
+        unsigned int height) {
     int i = get_global_id(0);
     int j = get_global_id(1);
     if (i < width && j < height) {
-        const float GRAVITATIONAL_CONSTANT = physics_constants[0];
-        const float GRAVITATIONAL_RATIO = physics_constants[1];
-        const float INTENSITY_FACTOR = physics_constants[2];
-        const float LIGHT_SLOWING_RATIO = physics_constants[3];
-        const float MASSIVE_BOUND = physics_constants[4];
-        const float SPEED_OF_LIGHT = physics_constants[5];
-        const float VISIBLE_PARALLAX = physics_constants[6];
-        const int APPLY_GR_RS = boolean_constants[0];
-        const int APPLY_INTENSITY = boolean_constants[1];
-        const int APPLY_LENSING = boolean_constants[2];
-        const int APPLY_SR_RS = boolean_constants[3];
-        const int USE_ALTERNATE_FACTOR = boolean_constants[4];
-        const int USE_INSTANT_GRAVITY = boolean_constants[5];
-        const int USE_LONG_STEP = boolean_constants[6];
-        uchar3 color = ray_trace(
+        float GRAVITATIONAL_CONSTANT = physics_constants[0];
+        float GRAVITATIONAL_RATIO = physics_constants[1];
+        float INTENSITY_FACTOR = physics_constants[2];
+        float LIGHT_SLOWING_RATIO = physics_constants[3];
+        float MASSIVE_BOUND = physics_constants[4];
+        float SPEED_OF_LIGHT = physics_constants[5];
+        float VISIBLE_PARALLAX = physics_constants[6];
+        int APPLY_GR_RS = boolean_constants[0];
+        int APPLY_INTENSITY = boolean_constants[1];
+        int APPLY_LENSING = boolean_constants[2];
+        int APPLY_SR_RS = boolean_constants[3];
+        int USE_ALTERNATE_FACTOR = boolean_constants[4];
+        int USE_INSTANT_GRAVITY = boolean_constants[5];
+        int USE_LONG_STEP = boolean_constants[6];
+        ray_trace(
             // Histories
             positions,
             velocities,
@@ -72,11 +111,11 @@ __kernel void reals (
             orientations_r[index_time_obj(
                 end_tick,
                 0,
-                num_objects)] * (i-width/2) * pix_size +
+                num_objects)] * (i-width/2) * PIX_SIZE +
             orientations_u[index_time_obj(
                 end_tick,
                 0,
-                num_objects)] * (j-height/2) * pix_size,
+                num_objects)] * (j-height/2) * PIX_SIZE,
             // Constants for this frame
             cur_time,
             num_objects,
@@ -84,31 +123,22 @@ __kernel void reals (
             start_tick,
             end_tick,
             // Constants for all frames
-            const float GRAVITATIONAL_CONSTANT,
-            const float GRAVITATIONAL_RATIO,
-            const float INTENSITY_FACTOR,
-            const float LIGHT_SLOWING_RATIO,
-            const float MASSIVE_BOUND,
-            const float SPEED_OF_LIGHT,
-            const float VISIBLE_PARALLAX,
-            const int APPLY_GR_RS,
-            const int APPLY_INTENSITY,
-            const int APPLY_LENSING,
-            const int APPLY_SR_RS,
-            const int USE_ALTERNATE_FACTOR,
-            const int USE_INSTANT_GRAVITY,
-            const int USE_LONG_STEP);
+            GRAVITATIONAL_CONSTANT,
+            GRAVITATIONAL_RATIO,
+            INTENSITY_FACTOR,
+            LIGHT_SLOWING_RATIO,
+            MASSIVE_BOUND,
+            SPEED_OF_LIGHT,
+            VISIBLE_PARALLAX,
+            APPLY_GR_RS,
+            APPLY_INTENSITY,
+            APPLY_LENSING,
+            APPLY_SR_RS,
+            USE_ALTERNATE_FACTOR,
+            USE_INSTANT_GRAVITY,
+            USE_LONG_STEP);
     }
 }
-
-// float wavelength_redshift(
-//        float3 light_direction,
-//        ,
-//        float impact_time,
-//        ) {
-//
-// }
-
 
 float schwarzschild_radius(
         float mass,
@@ -139,6 +169,28 @@ float factor(
         const int USE_ALTERNATE_FACTOR,
         const float LIGHT_SLOWING_RATIO);
 
+uchar3 perceived_colour(
+    int object_index,
+    float3 velocity_hit,
+    int time_hit,
+    float wavelength,
+    float3 initial_velocity,
+    float time,
+    int num_objects,
+    int end_tick,
+    int history_length,
+    float MASSIVE_BOUND,
+    float GRAVITATIONAL_CONSTANT,
+    float SPEED_OF_LIGHT,
+    float INTENSITY_FACTOR,
+    __global float* masses,
+    __global float3* positions,
+    __global float3* velocities,
+    int APPLY_SR_RS,
+    int APPLY_GR_RS,
+    int APPLY_INTENSITY);
+
+
 uchar3 ray_trace(
         // Histories
         __global float3* positions,
@@ -157,27 +209,26 @@ uchar3 ray_trace(
         float3 start_point,
         float3 start_ray,
         // Constants for this frame
-        const float cur_time,
+        float cur_time,
         const int num_objects,
-        const int history_length,
-        const int start_tick,
-        const int end_tick,
+        int history_length,
+        int start_tick,
+        int end_tick,
         // Constants for all frames
-        const float GRAVITATIONAL_CONSTANT,
-        const float GRAVITATIONAL_RATIO,
-        const float INTENSITY_FACTOR,
-        const float LIGHT_SLOWING_RATIO,
-        const float MASSIVE_BOUND,
-        const float SPEED_OF_LIGHT,
-        const float VISIBLE_PARALLAX,
-        const int APPLY_GR_RS,
-        const int APPLY_INTENSITY,
-        const int APPLY_LENSING,
-        const int APPLY_SR_RS,
-        const int USE_ALTERNATE_FACTOR,
-        const int USE_INSTANT_GRAVITY,
-        const int USE_LONG_STEP
-        ) {
+        float GRAVITATIONAL_CONSTANT,
+        float GRAVITATIONAL_RATIO,
+        float INTENSITY_FACTOR,
+        float LIGHT_SLOWING_RATIO,
+        float MASSIVE_BOUND,
+        float SPEED_OF_LIGHT,
+        float VISIBLE_PARALLAX,
+        int APPLY_GR_RS,
+        int APPLY_INTENSITY,
+        int APPLY_LENSING,
+        int APPLY_SR_RS,
+        int USE_ALTERNATE_FACTOR,
+        int USE_INSTANT_GRAVITY,
+        int USE_LONG_STEP) {              
     float gravitational_radii[num_objects];
     float relevant_radii[num_objects];
     int sizeable_objects[num_objects];
@@ -196,8 +247,8 @@ uchar3 ray_trace(
             schwarzschild_radius(masses[end_tick * num_objects + i], GRAVITATIONAL_CONSTANT, SPEED_OF_LIGHT) /
             distance(start_point, positions[end_tick * num_objects + i]));
     }
+/*
     float3 ray_velocity = SPEED_OF_LIGHT * combined_ratio * normalize(start_ray);
-
     while(num_sizeable > 0) {
         for (int i = 0; i < num_objects; i++) {
             if (sizeable_objects[i] == 1 && (deprecated[i] || distance_traveled
@@ -206,7 +257,6 @@ uchar3 ray_trace(
                 num_sizeable--;
             }
         }
-
         int relevant_objects[num_objects];
         int num_relevant = 0;
         float3 relative_positions[num_objects];
@@ -369,13 +419,18 @@ uchar3 ray_trace(
                                 GRAVITATIONAL_CONSTANT,
                                 SPEED_OF_LIGHT) :
                             optical_radii[i])) {
-                        return perceived_colour(i,
+                        //return
+                        perceived_colour;(
+                            i,
                             ray_velocity,
                             ray_time,
-                            wavelengths[index_tick_obj(tick_index(
-                            ray_time,
-                            history_length,
-                            end_tick), i, num_objects)],
+                            wavelengths[index_time_obj(
+                                tick_index(
+                                    ray_time,
+                                    history_length,
+                                    end_tick),
+                                i,
+                                num_objects)],
                             start_ray,
                             cur_time,
                             num_objects,
@@ -411,15 +466,15 @@ uchar3 ray_trace(
                             }
                         }
                     }
-                }*/
+                }
             }
         }
         distance_traveled += distance(new_position, ray_position);
         ray_position = new_position;
         ray_velocity = new_position - ray_position;
     }
-
     return (uchar3) (0, 0, 0);
+    */
 }
 
 int tick_index(int ray_time, int history_length, int end_tick) {
@@ -519,7 +574,7 @@ uchar3 perceived_colour(
     int time_hit,
     float wavelength,
     float3 initial_velocity,
-    int time,
+    float time,
     int num_objects,
     int end_tick,
     int history_length,
@@ -527,9 +582,9 @@ uchar3 perceived_colour(
     float GRAVITATIONAL_CONSTANT,
     float SPEED_OF_LIGHT,
     float INTENSITY_FACTOR,
-    float* masses,
-    float3* positions,
-    float3* velocities,
+    __global float* masses,
+    __global float3* positions,
+    __global float3* velocities,
     int APPLY_SR_RS,
     int APPLY_GR_RS,
     int APPLY_INTENSITY) {
