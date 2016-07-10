@@ -34,7 +34,15 @@ uchar3 ray_trace(
         const int num_objects,
         const int history_length,
         const int start_tick,
-        const int end_tick);
+        const int end_tick,
+        // Constant Settings
+        const int APPLY_GR_RS,
+        const int APPLY_INTENSITY,
+        const int APPLY_LENSING,
+        const int APPLY_SR_RS,
+        const int USE_ALTERNATE_FACTOR,
+        const int USE_INSTANT_GRAVITY,
+        const int USE_LONG_STEP);
 
 __kernel void reals (
         // Histories
@@ -108,14 +116,15 @@ __kernel void reals (
             num_objects,
             history_length,
             start_tick,
-            const int APPLY_GR_RS,
-            const int APPLY_INTENSITY,
-            const int APPLY_LENSING,
-            const int APPLY_SR_RS,
-            const int USE_ALTERNATE_FACTOR,
-            const int USE_INSTANT_GRAVITY,
-            const int USE_LONG_STEP);
-            end_tick);
+            end_tick,
+            // Constant Settings
+            APPLY_GR_RS,
+            APPLY_INTENSITY,
+            APPLY_LENSING,
+            APPLY_SR_RS,
+            USE_ALTERNATE_FACTOR,
+            USE_INSTANT_GRAVITY,
+            USE_LONG_STEP);
     }
 }
 
@@ -137,8 +146,7 @@ float3 acceleration (
         float3 velocity,
         float mass);
 
-        const int USE_ALTERNATE_FACTOR,
-float factor(float ratio);
+float factor(float ratio, int USE_ALTERNATE_FACTOR);
 
 uchar3 perceived_colour(
     int object_index,
@@ -150,10 +158,12 @@ uchar3 perceived_colour(
     int num_objects,
     int end_tick,
     int history_length,
+    int APPLY_SR_RS,
+    int APPLY_GR_RS,
+    int APPLY_INTENSITY,
     __global float* masses,
     __global float3* positions,
     __global float3* velocities);
-
 
 uchar3 ray_trace (
         // Histories
@@ -177,7 +187,7 @@ uchar3 ray_trace (
         const int num_objects,
         const int history_length,
         const int start_tick,
-        const int end_tick) {
+        const int end_tick,
         // Constants for all frames
         const int APPLY_GR_RS,
         const int APPLY_INTENSITY,
@@ -185,8 +195,7 @@ uchar3 ray_trace (
         const int APPLY_SR_RS,
         const int USE_ALTERNATE_FACTOR,
         const int USE_INSTANT_GRAVITY,
-        const int USE_LONG_STEP
-    
+        const int USE_LONG_STEP) {
     float gravitational_radii[NUM_OBJECTS];
     float relevant_radii[NUM_OBJECTS];
     int sizeable_objects[NUM_OBJECTS];
@@ -337,8 +346,9 @@ uchar3 ray_trace (
         }
 
         ray_velocity = (
-                USE_ALTERNATE_FACTOR,
-            SPEED_OF_LIGHT * factor(combined_ratio) *
+            SPEED_OF_LIGHT * factor(
+                combined_ratio,
+                USE_ALTERNATE_FACTOR) *
             normalize(ray_velocity + 0.166667 * (
                     acceleration1 +
                     2 * (acceleration2 + acceleration3) +
@@ -376,6 +386,9 @@ uchar3 ray_trace (
                             num_objects,
                             end_tick,
                             history_length,
+                            APPLY_SR_RS,
+                            APPLY_GR_RS,
+                            APPLY_INTENSITY,
                             masses,
                             positions,
                             velocities);
@@ -406,10 +419,7 @@ uchar3 ray_trace (
         ray_position = new_position;
         ray_velocity = new_position - ray_position;
     }
-    
     return (uchar3) (0, 0, 0);
-    
-
 }
 
 int tick_index(int ray_time, int history_length, int end_tick) {
@@ -424,8 +434,7 @@ float schwarzschild_radius(float mass) {
     return 2 * GRAVITATIONAL_CONSTANT * mass / SPEED_OF_LIGHT / SPEED_OF_LIGHT;
 }
 
-        const int USE_ALTERNATE_FACTOR,
-float factor(float ratio) {
+float factor(float ratio, int USE_ALTERNATE_FACTOR) {
     if (USE_ALTERNATE_FACTOR) {
         return (1 - LIGHT_SLOWING_RATIO * ratio) * (1 - LIGHT_SLOWING_RATIO *
         ratio);
@@ -492,132 +501,133 @@ int worldline (
     return lower_bound;
 }
 
+
 uchar3 perceived_colour(
-    int object_index,
-    float3 velocity_hit,
-    int time_hit,
-    float wavelength,
-    float3 initial_velocity,
-    float time,
-    int num_objects,
-    int end_tick,
-    int history_length,
-    int APPLY_SR_RS,
-    int APPLY_GR_RS,
-    int APPLY_INTENSITY) {
-    __global float* masses,
-    __global float3* positions,
-    __global float3* velocities) {
-        if (APPLY_SR_RS) {
-            float outgoing_speed = dot(
-                normalize(initial_velocity),
-                normalize(velocities[index_time_obj(
-                    tick_index(
-                        time,
-                        history_length,
-                        end_tick),
-                    0,
-                    num_objects)]));
-
-            float incoming_speed = dot(
-                normalize(velocity_hit),
-                normalize(velocities[index_time_obj(
-                    tick_index(
-                        time_hit,
-                        history_length,
-                        end_tick),
-                    object_index,
-                    num_objects)]));
-
-            float ratio = (outgoing_speed + incoming_speed) / (1 -
-                fabs(outgoing_speed * incoming_speed));
-            wavelength *= sqrt((1 + ratio) / (1 - ratio));
-        }
-        if (APPLY_GR_RS) {
-            for (int i = 0; i < num_objects; i++) {
-                if (masses[index_time_obj(
-                        tick_index(
-                            time,
-                            history_length,
-                            end_tick),
-                        i,
-                        num_objects)] > MASSIVE_BOUND) {
-                    wavelength *= sqrt((1 - schwarzschild_radius(
-                        masses[index_time_obj(tick_index(
-                        time,
-                        history_length,
-                        end_tick), i, num_objects)]) /
-                        length(positions[index_time_obj(tick_index(
-                        time_hit,
-                        history_length,
-                        end_tick), object_index, num_objects)] -
-                        positions[index_time_obj(tick_index(
-                        time_hit,
-                        history_length,
-                        end_tick), i, num_objects)])) /
-                        (1 - schwarzschild_radius(
-                        masses[index_time_obj(tick_index(
-                        time,
-                        history_length,
-                        end_tick), i, num_objects)]) /
-                        length(positions[index_time_obj(tick_index(
-                        time,
-                        history_length,
-                        end_tick), 0, num_objects)] -
-                        positions[index_time_obj(tick_index(
-                        time,
-                        history_length,
-                        end_tick), i, num_objects)])));
-                }
-            }
-        }
-        float3 rgb;
-        if (wavelength >= 380 && wavelength < 440) {
-            rgb = (float3) (0.0166667 * (440 - wavelength), 0.0, 1.0);
-        } else if (wavelength >= 440 && wavelength < 490) {
-            rgb = (float3) (0.0, 0.02 * (wavelength - 440), 1.0);
-        } else if (wavelength >= 490 && wavelength < 510) {
-            rgb = (float3) (0.0, 1.0, 0.05 * (510 - wavelength));
-        } else if (wavelength >= 510 && wavelength < 580) {
-            rgb = (float3) (0.0142857 * (wavelength - 510), 1.0, 0.0);
-        } else if (wavelength >= 580 && wavelength < 645) {
-            rgb = (float3) (1.0, 0.0153846 * (645 - wavelength), 0.0);
-        } else if (wavelength >= 645 && wavelength <= 780) {
-            rgb = (float3) (1.0, 0.0, 0.0);
-        } else {
-            rgb = (float3) (0.0, 0.0, 0.0);
-        }
-        float factor;
-        if (wavelength >= 380 && wavelength < 420) {
-            factor = 0.3 + 0.0175 * (wavelength - 380);
-        } else if (wavelength >= 420 && wavelength < 700) {
-            factor = 1.0;
-        } else if (wavelength >= 700 && wavelength <= 780) {
-            factor = 0.3 + 0.00875 * (780 - wavelength);
-        } else {
-            factor = 0.0;
-        }
-        if (APPLY_INTENSITY) {
-            float ratio = length(velocities[index_time_obj(
+        int object_index,
+        float3 velocity_hit,
+        int time_hit,
+        float wavelength,
+        float3 initial_velocity,
+        float time,
+        int num_objects,
+        int end_tick,
+        int history_length,
+        int APPLY_SR_RS,
+        int APPLY_GR_RS,
+        int APPLY_INTENSITY,
+        __global float* masses,
+        __global float3* positions,
+        __global float3* velocities) {
+    if (APPLY_SR_RS) {
+        float outgoing_speed = dot(
+            normalize(initial_velocity),
+            normalize(velocities[index_time_obj(
                 tick_index(
                     time,
                     history_length,
                     end_tick),
                 0,
-                num_objects)]) / SPEED_OF_LIGHT;
-            factor *= sqrt(1 - ratio * ratio) /
-                (1 - ratio * dot(normalize(initial_velocity),
-                normalize(velocities[index_time_obj(
+                num_objects)]));
+
+        float incoming_speed = dot(
+            normalize(velocity_hit),
+            normalize(velocities[index_time_obj(
+                tick_index(
+                    time_hit,
+                    history_length,
+                    end_tick),
+                object_index,
+                num_objects)]));
+
+        float ratio = (outgoing_speed + incoming_speed) / (1 -
+            fabs(outgoing_speed * incoming_speed));
+        wavelength *= sqrt((1 + ratio) / (1 - ratio));
+    }
+    if (APPLY_GR_RS) {
+        for (int i = 0; i < num_objects; i++) {
+            if (masses[index_time_obj(
                     tick_index(
                         time,
                         history_length,
                         end_tick),
-                    0,
-                    num_objects)])));
-
+                    i,
+                    num_objects)] > MASSIVE_BOUND) {
+                wavelength *= sqrt((1 - schwarzschild_radius(
+                    masses[index_time_obj(tick_index(
+                    time,
+                    history_length,
+                    end_tick), i, num_objects)]) /
+                    length(positions[index_time_obj(tick_index(
+                    time_hit,
+                    history_length,
+                    end_tick), object_index, num_objects)] -
+                    positions[index_time_obj(tick_index(
+                    time_hit,
+                    history_length,
+                    end_tick), i, num_objects)])) /
+                    (1 - schwarzschild_radius(
+                    masses[index_time_obj(tick_index(
+                    time,
+                    history_length,
+                    end_tick), i, num_objects)]) /
+                    length(positions[index_time_obj(tick_index(
+                    time,
+                    history_length,
+                    end_tick), 0, num_objects)] -
+                    positions[index_time_obj(tick_index(
+                    time,
+                    history_length,
+                    end_tick), i, num_objects)])));
+            }
         }
+    }
+    float3 rgb;
+    if (wavelength >= 380 && wavelength < 440) {
+        rgb = (float3) (0.0166667 * (440 - wavelength), 0.0, 1.0);
+    } else if (wavelength >= 440 && wavelength < 490) {
+        rgb = (float3) (0.0, 0.02 * (wavelength - 440), 1.0);
+    } else if (wavelength >= 490 && wavelength < 510) {
+        rgb = (float3) (0.0, 1.0, 0.05 * (510 - wavelength));
+    } else if (wavelength >= 510 && wavelength < 580) {
+        rgb = (float3) (0.0142857 * (wavelength - 510), 1.0, 0.0);
+    } else if (wavelength >= 580 && wavelength < 645) {
+        rgb = (float3) (1.0, 0.0153846 * (645 - wavelength), 0.0);
+    } else if (wavelength >= 645 && wavelength <= 780) {
+        rgb = (float3) (1.0, 0.0, 0.0);
+    } else {
+        rgb = (float3) (0.0, 0.0, 0.0);
+    }
+    float factor;
+    if (wavelength >= 380 && wavelength < 420) {
+        factor = 0.3 + 0.0175 * (wavelength - 380);
+    } else if (wavelength >= 420 && wavelength < 700) {
+        factor = 1.0;
+    } else if (wavelength >= 700 && wavelength <= 780) {
+        factor = 0.3 + 0.00875 * (780 - wavelength);
+    } else {
+        factor = 0.0;
+    }
+    if (APPLY_INTENSITY) {
+        float ratio = length(velocities[index_time_obj(
+            tick_index(
+                time,
+                history_length,
+                end_tick),
+            0,
+            num_objects)]) / SPEED_OF_LIGHT;
+        factor *= sqrt(1 - ratio * ratio) /
+            (1 - ratio * dot(normalize(initial_velocity),
+            normalize(velocities[index_time_obj(
+                tick_index(
+                    time,
+                    history_length,
+                    end_tick),
+                0,
+                num_objects)])));
 
-        return (uchar3) ((rgb.x == 0.0 ? 0 : min(round(255 * powr(rgb.x * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
-            (rgb.y == 0.0 ? 0 : min(round(255 * powr(rgb.y * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
-            (rgb.z == 0.0 ? 0 : min(round(255 * powr(rgb.z * INTENSITY_FACTOR * factor, 0.8)), 255.0)));
+    }
+
+    return (uchar3) ((rgb.x == 0.0 ? 0 : min(round(255 * powr(rgb.x * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
+        (rgb.y == 0.0 ? 0 : min(round(255 * powr(rgb.y * INTENSITY_FACTOR * factor, 0.8)), 255.0)),
+        (rgb.z == 0.0 ? 0 : min(round(255 * powr(rgb.z * INTENSITY_FACTOR * factor, 0.8)), 255.0)));
 }
