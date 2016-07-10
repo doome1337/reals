@@ -108,11 +108,11 @@ __kernel void reals (
             orientations_r[index_time_obj(
                 end_tick,
                 0,
-                NUM_OBJECTS)] * (i - height/2) * PIX_SIZE +
+                NUM_OBJECTS)] * (i - height/2.0) * PIX_SIZE +
             orientations_u[index_time_obj(
                 end_tick,
                 0,
-                NUM_OBJECTS)] * (j - width/2) * PIX_SIZE,
+                NUM_OBJECTS)] * (j - width/2.0) * PIX_SIZE,
             // Constants for this frame
             cur_time,
             NUM_OBJECTS,
@@ -383,9 +383,6 @@ uchar3 ray_trace (
         float3 new_position = ray_position + 0.166667 * (ray_velocity + 2.0 *
             (velocity2 + velocity3) + velocity4);
         ray_time++;
-        if (ray_time == 120) {
-            return(uchar3)(100*length(ray_velocity),0,0);
-        }
         if (ray_time > history_length) {
             return (uchar3) (0, 0, 0);
         }
@@ -417,14 +414,14 @@ uchar3 ray_trace (
             if (sizeable_objects[i]) {
                 if (is_sphere[i]) {
                     if (distance(
-                            new_position,
-                            positions[index_time_obj(
+                            new_position,(float3)(3,0,0)
+                           /* positions[index_time_obj(
                                 tick_index(
                                     ray_time,
                                     history_length,
                                     end_tick),
                                 i,
-                                num_objects)]) < (
+                                num_objects)]*/) < (
                             is_black_hole[i] ?
                             schwarzschild_radius(
                                 masses[index_time_obj(
