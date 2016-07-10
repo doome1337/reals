@@ -78,7 +78,7 @@ __kernel void reals (
         const int APPLY_GR_RS = 0;
         const int APPLY_INTENSITY = 0;
         const int APPLY_LENSING = 0;
-        const int APPLY_SR_RS = 0;
+        const int APPLY_SR_RS = 1;
         const int USE_ALTERNATE_FACTOR = boolean_constants[4];
         const int USE_INSTANT_GRAVITY = boolean_constants[5];
         const int USE_LONG_STEP = boolean_constants[6];
@@ -582,27 +582,40 @@ uchar3 perceived_colour(
         __global float3* positions,
         __global float3* velocities) {
     if (APPLY_SR_RS) {
-        float outgoing_speed = dot(
+        float vel_prod = length(initial_velocity) * length(velocities[index_time_obj(
+            tick_index(
+                time,
+                history_length,
+                end_tick),
+            0,
+            num_objects)]);
+        float outgoing_speed = vel_prod != 0.0 ? dot(
             normalize(initial_velocity),
-            normalize(velocities[index_time_obj(
+            velocities[index_time_obj(
                 tick_index(
                     time,
                     history_length,
                     end_tick),
                 0,
-                num_objects)]));
-
-        float incoming_speed = dot(
+                num_objects)]) : 0.0;
+        vel_prod = length(velocity_hit) * length(velocities[index_time_obj(
+            tick_index(
+                time_hit,
+                history_length,
+                end_tick),
+            object_index,
+            num_objects)]);
+        float incoming_speed = vel_prod != 0.0 ? dot(
             normalize(velocity_hit),
-            normalize(velocities[index_time_obj(
+            velocities[index_time_obj(
                 tick_index(
                     time_hit,
                     history_length,
                     end_tick),
                 object_index,
-                num_objects)]));
+                num_objects)]) : 0.0;
 
-        float ratio = (outgoing_speed + incoming_speed) / (1 -
+        float ratio = (outgoing_speed + incoming_speed) / (SPEED_OF_LIGHT*SPEED_OF_LIGHT -
             fabs(outgoing_speed * incoming_speed));
         wavelength *= sqrt((1 + ratio) / (1 - ratio));
     }

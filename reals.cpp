@@ -23,7 +23,7 @@
 #endif
 
 #define TICKS_PER_SECOND (30)
-#define SECONDS_OF_MEMORY (5)
+#define SECONDS_OF_MEMORY (9)
 
 #define MAX_INTENSITY_AT_REST (255)
 #define SPEED_OF_LIGHT (299792458.0)
@@ -40,8 +40,8 @@
 #define APPLY_ORBIT_DECAY (0)
 #define USE_ALTERNATE_FACTOR (0)
 
-#define WIDTH (160)
-#define HEIGHT (120)
+#define WIDTH (320)
+#define HEIGHT (240)
 #define PIX_SIZE (0.01)
 
 #define I_KEY (1)
@@ -165,11 +165,11 @@ int main(int argc, char** argv) {
         unsigned int start_tick = 0;
         unsigned int end_tick = ticks;
 
-        for (int i = 0; i < end_tick+50; i++) {
+        for (int i = 0; i < history_length-1; i++) {
             h_positions.at(2*i+0) = (cl_float3) {0.0, 0.0, 0.0};
             h_positions.at(2*i+1) = (cl_float3) {2.0, 0.0, 0.0};
             h_velocities.at(2*i+0) = (cl_float3) {0.0, 0.0, 0.0};
-            h_velocities.at(2*i+1) = (cl_float3) {((cl_float) 0.0001)*i, 0.0, 0.0};
+            h_velocities.at(2*i+1) = (cl_float3) {0.0, 0.0, 0.0};
             h_orientations_r.at(2*i+0) = (cl_float3) {0.0, -1.0, 0.0};
             h_orientations_r.at(2*i+1) = (cl_float3) {1.0, 0.0, 0.0};
             h_orientations_f.at(2*i+0) = (cl_float3) {1.0, 0.0, 0.0};
@@ -515,9 +515,9 @@ void update() {
             }
         }
     }
-    /*h_velocities[index_time_obj(ticks, 0, num_objects)] = vec_add(
-        h_velocities[index_time_obj(ticks, 0, num_objects)],
-        (cl_float3) {0.0005, 0.0, 0.0});*/
+    h_velocities[index_time_obj(ticks, 1, num_objects)] = vec_add(
+        h_velocities[index_time_obj(ticks, 1, num_objects)],
+        (cl_float3) {(cl_float) (0.0001*cos(0.2*ticks)), 0.0, 0.0});
 }
 
 int worldline(int min_time, int max_time, int time, int object_index, cl_float3 object_position) {
