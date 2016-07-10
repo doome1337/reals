@@ -68,7 +68,8 @@ __kernel void reals (
         __global int* boolean_constants,
         const unsigned int history_length,
         const unsigned int width,
-        const unsigned int height) {
+        const unsigned int height,
+        __global uchar3* colors) {
     int i = get_global_id(0);
     int j = get_global_id(1);
     if (i < width && j < height) {
@@ -79,7 +80,7 @@ __kernel void reals (
         const int USE_ALTERNATE_FACTOR = boolean_constants[4];
         const int USE_INSTANT_GRAVITY = boolean_constants[5];
         const int USE_LONG_STEP = boolean_constants[6];
-        ray_trace(
+        colors[j*width + i] = ray_trace(
             // Histories
             positions,
             velocities,
@@ -329,7 +330,7 @@ uchar3 ray_trace (
         float3 new_position = ray_position + 0.166667 * (ray_velocity + 2.0 *
             (velocity2 + velocity3) + velocity4);
         ray_time++;
-        if (ray_time == history_length - 1) {
+        if (ray_time > history_length - 1) {
             return (uchar3) (0, 0, 0);
         }
         combined_ratio = 0.0;

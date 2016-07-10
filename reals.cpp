@@ -97,6 +97,7 @@ int main(int argc, char** argv) {
         std::vector<cl_int> h_is_black_hole(num_objects);
         std::vector<cl_int> h_is_sphere(num_objects);
         std::vector<cl_int> h_boolean_constants(7, false);
+        std::vector<cl_uchar3> h_colors(WIDTH*HEIGHT, (cl_uchar3) {0, 0, 0});
 
         float cur_time = 0.0;
         unsigned int start_tick = 0;
@@ -116,6 +117,7 @@ int main(int argc, char** argv) {
         cl::Buffer d_is_black_hole;
         cl::Buffer d_is_sphere;
         cl::Buffer d_boolean_constants;
+        cl::Buffer d_colors;
 
         int input;
         int INPUT_METHOD = I_KEY;
@@ -151,7 +153,8 @@ int main(int argc, char** argv) {
                 float,
                 unsigned int, unsigned int,
                 cl::Buffer,
-                unsigned int, unsigned int, unsigned int
+                unsigned int, unsigned int, unsigned int,
+                cl::Buffer
                 >(program, "reals");
 
             d_positions = cl::Buffer(
@@ -224,6 +227,10 @@ int main(int argc, char** argv) {
                 begin(h_boolean_constants),
                 end(h_boolean_constants),
                 true);
+            d_colors = cl::Buffer(
+                context,
+                CL_MEM_WRITE_ONLY,
+                sizeof(cl_uchar3)*WIDTH*HEIGHT);
 
             reals(
                     cl::EnqueueArgs(
@@ -248,11 +255,22 @@ int main(int argc, char** argv) {
                     d_boolean_constants,
                     history_length,
                     WIDTH,
-                    HEIGHT);
+                    HEIGHT,
+                    d_colors);
 
             queue.finish();
-/*
-            cl::copy(queue, d_colors, begin(h_colors), end(h_colors));*/
+
+            cl::copy(queue, d_colors, begin(h_colors), end(h_colors));
+
+            for (int i = 0; i < HEIGHT; i++) {
+                for (int j = 0; j < WIDTH; j++) {
+                    cv::Vec3b color;
+                    color[0] = h_colors[i*WIDTH+j].s[2];
+                    color[1] = h_colors[i*WIDTH+j].s[1];
+                    color[2] = h_colors[i*WIDTH+j].s[0];
+                    frame.at<cv::Vec3b>(cv::Point(j,i)) = color;
+                }
+            }
 
             while ((input = fetch_input(INPUT_METHOD)) != -1) {
                 output_image(OUTPUT_METHOD, frame, &video_output);
